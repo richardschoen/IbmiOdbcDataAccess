@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.4.33205.214
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IbmiOdbcDataAccess", "IbmiOdbcDataAccess\IbmiOdbcDataAccess.csproj", "{CA9E6BA8-8984-4C5C-A6C0-F0FA36C93CE0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IbmiOdbcDataAccessTester1", "..\IbmiOdbcDataAccessTester1\IbmiOdbcDataAccessTester1\IbmiOdbcDataAccessTester1.csproj", "{D5369485-3BCD-47E0-8A2B-FA2F4D82384D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{CA9E6BA8-8984-4C5C-A6C0-F0FA36C93CE0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CA9E6BA8-8984-4C5C-A6C0-F0FA36C93CE0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CA9E6BA8-8984-4C5C-A6C0-F0FA36C93CE0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CA9E6BA8-8984-4C5C-A6C0-F0FA36C93CE0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D5369485-3BCD-47E0-8A2B-FA2F4D82384D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D5369485-3BCD-47E0-8A2B-FA2F4D82384D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D5369485-3BCD-47E0-8A2B-FA2F4D82384D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D5369485-3BCD-47E0-8A2B-FA2F4D82384D}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {8BCADA1D-48CF-4831-9C4C-4B802AE70EBE}
+	EndGlobalSection
+EndGlobal
