@@ -166,7 +166,7 @@ namespace IbmiOdbcDataAccess
 
         /// <summary>
         /// Open database connection with system name/ip, user id, password using 
-        /// IBM i Access connection string template instead of passing entire connection string/
+        /// IBM i Access connection string template instead of passing entire connection string.
         /// You can override the default IBM i connection string template via the SetIbmiConnectionStringTemplate()
         /// method. 
         /// </summary>
