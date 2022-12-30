@@ -2,6 +2,10 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <Title>IBM i Access ODBC Data Access</Title>
+    <Description>IBM i Access ODBC Data Access</Description>
+    <Copyright>2022 MobiGogo LLC</Copyright>
+    <Product>IBM i Access ODBC Data Access</Product>
   </PropertyGroup>
 
   <ItemGroup>

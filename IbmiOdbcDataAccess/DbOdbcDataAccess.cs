@@ -11,13 +11,13 @@ using System.Security;
 using System.Text;
 using System.Data;
 using System.Data.Odbc;
-//using System.Data;
+using static System.Net.WebRequestMethods;
 
 namespace IbmiOdbcDataAccess
 {
     /// <summary>
     /// This class file contains a general ODBC data class wrapper
-    /// to simplify ODBC work.
+    /// to simplify ODBC work with IBM i data.
     /// This class can also be inherited and extended from a business object.
     /// </summary>
     /// <remarks></remarks>
@@ -36,11 +36,12 @@ namespace IbmiOdbcDataAccess
         private bool _bConnectionOpen = false;
         private int _iLastExportCount;
         private string _lastSql;
+        private string _ibmiaccessconntemplate="Driver={IBM i Access ODBC Driver};System=@@SYSTEM;Uid=@@USERID;Pwd=@@PASS;CommitMode=0;EXTCOLINFO=1";
 
         /// <summary>
         /// Get last error
         /// </summary>
-        /// <returns></returns>
+        /// <returns>Error info from last call if set</returns>
         public string GetLastError()
         {
             return _lastError;
@@ -49,10 +50,36 @@ namespace IbmiOdbcDataAccess
         /// <summary>
         /// Get last SQL query
         /// </summary>
-        /// <returns></returns>
+        /// <returns>Return last SQL statement executed if set</returns>
         public string GetLastSql()
         {
             return _lastSql;
+        }
+
+        /// <summary>
+        /// Set IBM i access connection string default template if you want to override the default.
+        /// Keywords that can be passed as part of the template:
+        /// @@SYSTEM - IBMi system host name or IP address
+        /// @@USER - IBMi user id
+        /// @@PASS - IBMi password
+        /// You don't need to use this method unless you want to use the OpenConnection method and pass just
+        /// the system/host, user id and password instead of the entire string and want to overrider the default 
+        /// IBM i connection string.
+        /// Default connection string template which is pre-set:
+        /// "Driver={IBM i Access ODBC Driver};System=@@SYSTEM;Uid=@@USERID;Pwd=@@PASS;CommitMode=0;EXTCOLINFO=1"
+        /// </summary>
+        /// <param name="strConnStringTemplate"></param>
+        public void SetIbmiConnectionStringTemplate(string strConnStringTemplate)
+        {
+            try
+            {
+                _lastError = "";
+                _ibmiaccessconntemplate = strConnStringTemplate;
+            }
+            catch (Exception ex)
+            {
+                _lastError = ex.Message;
+            }
         }
 
         /// <summary>
@@ -68,6 +95,7 @@ namespace IbmiOdbcDataAccess
             }
             catch (Exception ex)
             {
+                _connectionString = "";
                 _lastError = ex.Message;
             }
         }
@@ -75,24 +103,28 @@ namespace IbmiOdbcDataAccess
         /// <summary>
         /// Open database connection without passing explicit connection string
         /// If no connection string passed, SetConnectionString must be called beforehand 
-        /// set connection info.
+        /// to set connection string info.
         /// </summary>
+        /// <returns>True=Connection opened successfully. False=Error occurred opening connection.</returns>
         public bool OpenConnection()
         {
             // Call open connection with no connection string
             return OpenConnection("");
         }
+
         /// <summary>
         /// Return connection status
         /// </summary>
-        /// <returns></returns>
+        /// <returns>True=Connection is open. False=Connection is not open.</returns>
         public bool IsConnected()
         {
             return _bConnectionOpen;
         }
+
         /// <summary>
         /// Open database connection with set connection string
         /// </summary>
+        /// <returns>True=Connection opened successfully. False=Error occurred opening connection.</returns>
         public bool OpenConnection(string strConnString)
         {
             try
@@ -105,9 +137,9 @@ namespace IbmiOdbcDataAccess
                 if (strConnString.Trim() != "")
                     _connectionString = strConnString;
 
-                // Bail if no connection string
+                // Bail if no connection string was pre-set with SetConnectionString method.
                 if (_connectionString.Trim() == "")
-                    throw new Exception("No database connection string set.");
+                    throw new Exception("No database connection string has been set.");
 
                 // Create the connection
                 _conn = new OdbcConnection();
@@ -131,9 +163,59 @@ namespace IbmiOdbcDataAccess
                 return false;
             }
         }
+
+        /// <summary>
+        /// Open database connection with system name/ip, user id, password using 
+        /// IBM i Access connection string template instead of passing entire connection string/
+        /// You can override the default IBM i connection string template via the SetIbmiConnectionStringTemplate()
+        /// method. 
+        /// </summary>
+        /// <returns>True=Connection opened successfully. False=Error occurred opening connection.</returns>
+        public bool OpenConnection(string systemHost,string userId, string password)
+        {
+
+            // Set temp connection string
+            string _tempConn = _ibmiaccessconntemplate;
+
+            try
+            {
+                _lastError = "";
+
+                // If host, user, password passed in, 
+                // SetConnectionString
+                if (systemHost.Trim() == "")
+                    throw new Exception("System name/host ip address is required.");
+
+                if (userId.Trim() == "")
+                    throw new Exception("User id is required.");
+
+                if (password.Trim() == "")
+                    throw new Exception("Password is required.");
+
+                // Build connection string
+                _tempConn = _tempConn.Replace("@@SYSTEM", systemHost.Trim());
+                _tempConn = _tempConn.Replace("@@USERID", userId.Trim());
+                _tempConn = _tempConn.Replace("@@PASS", password.Trim());
+
+                // Set connection string based on IBM i connection string teamplte
+                _connectionString = _tempConn;
+
+                // Open the connection now
+                return OpenConnection(_connectionString);
+
+            }
+            catch (Exception ex)
+            {
+                _lastError = ex.Message;
+                _bConnectionOpen = false;
+                return false;
+            }
+        }
+
         /// <summary>
         /// Close database connection
         /// </summary>
+        /// <returns>True=Connection closed successfully. False=Error occurred closing connection.</returns>
         public bool CloseConnection()
         {
             try
@@ -169,7 +251,7 @@ namespace IbmiOdbcDataAccess
         /// <param name="iMaxRecords">Ending record. Default = 0. If start and max are 0, all records will be exported to DataTable.</param>
         /// <param name="tablename">Data table name</param>
         /// <param name="queryTimeout">Query Timeout. 0=No Timeout,-1=Use default timeout which is usually 30 seconds</param>
-        /// <returns>Data Table or null</returns>
+        /// <returns>DataTable or null</returns>
         public DataTable ExecuteQueryToDataTable(string sqlselect, int iStartRecord = 0, int iMaxRecords = 0, string tableName = "Table1", int queryTimeout = -1)
         {
             try
@@ -240,7 +322,7 @@ namespace IbmiOdbcDataAccess
         /// This function takes an SQL SELECT statement and connection string and 
         /// runs the query to get the data we want to work with.
         /// </summary>
-        /// <param name="sqlselect"></param>
+        /// <param name="sqlselect">SQL query</param>
         /// <param name="iStartRecord">Starting record. Default=0. If start and max are 0, all records will be exported to DataTable.</param>
         /// <param name="iMaxRecords">Ending record. Default = 0. If start and max are 0, all records will be exported to DataTable.</param>
         /// <param name="tablename">Data table name</param>
@@ -311,8 +393,9 @@ namespace IbmiOdbcDataAccess
                 return false;
             }
         }
+
         /// <summary>
-        /// get internal Data Table contents to delimited string
+        /// Get internal Data Table contents to delimited string
         /// </summary>
         /// <param name="delim">Field delimiter. Default=|</param>
         /// <param name="replace">True=replace output file is it exists. False=Dont replace. Default=False</param>
@@ -460,12 +543,12 @@ namespace IbmiOdbcDataAccess
                     throw new Exception("Data Table has no data. Export cancelled.");
 
                 // If file exists and replace not selected bail
-                if (File.Exists(outputFile))
+                if (System.IO.File.Exists(outputFile))
                 {
                     bOutputFileExists = true;
                     if (replace == true)
                     {
-                        File.Delete(outputFile);
+                        System.IO.File.Delete(outputFile);
                         bOutputFileExists = false;
                     }
                     else
@@ -526,7 +609,7 @@ namespace IbmiOdbcDataAccess
                 }
 
                 // Append all text to file. That way if already exists, we can append new data if selected
-                File.AppendAllText(outputFile, sbHdr.ToString() + sbDtl.ToString(), Encoding.UTF8);
+                System.IO.File.AppendAllText(outputFile, sbHdr.ToString() + sbDtl.ToString(), Encoding.UTF8);
 
                 // Set completion
                 _iLastExportCount = _dTable.Rows.Count;
@@ -582,12 +665,12 @@ namespace IbmiOdbcDataAccess
                     throw new Exception("Data Reader has no data. Export cancelled.");
 
                 // If file exists and replace not selected bail
-                if (File.Exists(outputFile))
+                if (System.IO.File.Exists(outputFile))
                 {
                     bOutputFileExists = true;
                     if (replace == true)
                     {
-                        File.Delete(outputFile);
+                        System.IO.File.Delete(outputFile);
                         bOutputFileExists = false;
                     }
                     else
@@ -650,7 +733,7 @@ namespace IbmiOdbcDataAccess
                 }
 
                 // Append all text to file. That way if already exists, we can append new data if selected
-                File.AppendAllText(outputFile, sbHdr.ToString() + sbDtl.ToString(), Encoding.UTF8);
+                System.IO.File.AppendAllText(outputFile, sbHdr.ToString() + sbDtl.ToString(), Encoding.UTF8);
 
                 // Set completion
                 _iLastExportCount = rowcount;
@@ -801,6 +884,60 @@ namespace IbmiOdbcDataAccess
                 _lastError = ex.Message;
                 // If errors occur, return nothing.
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// Run SQL query and return as an internal DataReader object.
+        /// This allows us to iterate the Data Reader from a VB or VB Scripting environment.
+        /// This function takes an SQL SELECT statement and connection string and 
+        /// runs the query to get the data we want to work with.
+        /// </summary>
+        /// <param name="sqlselect"></param>
+        /// <param name="queryTimeout">Query Timeout. 0=No Timeout,-1=Use default timeout which is usually 30 seconds</param>
+        /// <returns>DataReader or null if errors</returns>
+        public OdbcDataReader ExecuteQueryToDataReader(string sqlselect, int queryTimeout = -1)
+        {
+            try
+            {
+                _lastError = "";
+
+                _dTable = null;
+                _dReader = null;
+                _iDtRows = 0;
+                _iDtColumns = 0;
+
+                // Check for active connection
+                if (IsConnected() == false)
+                    throw new Exception("Database connection not open.");
+
+                // Bail if not a SELECT
+                if (!sqlselect.ToUpper().StartsWith("SELECT"))
+                    throw new Exception("Only SELECT queries can be run.");
+
+                // Create command and run query to data reader
+                _cmd = _conn.CreateCommand();
+
+                // Set query timeout if specified. 0=no timeout
+                if (queryTimeout >= 0)
+                {
+                    _cmd.CommandTimeout = queryTimeout;
+                }
+
+                // Save last SQL property
+                _lastSql = sqlselect;
+
+                // Set SQL
+                _cmd.CommandText = sqlselect;
+
+                // Get the data reader so we can process one record at a time
+                return _cmd.ExecuteReader();
+            }
+            catch (Exception ex)
+            {
+                _lastError = ex.Message;
+                // If errors occur, return nothing.
+                return null;
             }
         }
 
@@ -1184,8 +1321,9 @@ namespace IbmiOdbcDataAccess
         /// </summary>
         /// <param name="sqlCommand">SQL action command</param>
         /// <param name="commandTimeout">Query Timeout. 0=No Timeout,-1=Use default timeout which is usually 30 seconds</param>
+        /// <param name="allowSelectQueries">True-Allow SELECT queries. False-Do not allow select queries. Default=False</param>
         /// <returns>Records affected or -2 on errors.</returns>
-        public int ExecuteCommandNonQuery(string sqlCommand, int commandTimeout = -1)
+        public int ExecuteCommandNonQuery(string sqlCommand, int commandTimeout = -1,bool allowSelectQueries=false)
         {
             try
             {
@@ -1195,9 +1333,11 @@ namespace IbmiOdbcDataAccess
                 if (IsConnected() == false)
                     throw new Exception("Database connection not open.");
 
-                // Bail if a SELECT
-                if (sqlCommand.ToUpper().StartsWith("SELECT"))
-                    throw new Exception("SELECT queries are not allowed here.");
+                // Bail if a SELECT and select not allowed
+                if (!allowSelectQueries) { 
+                    if (sqlCommand.ToUpper().StartsWith("SELECT"))
+                        throw new Exception("SELECT queries are not allowed here.");
+                }
 
                 // Save last SQL property
                 _lastSql = sqlCommand;
@@ -1232,10 +1372,10 @@ namespace IbmiOdbcDataAccess
         /// <summary>
         /// Drop selected table
         /// </summary>
-        /// <param name="connectionString">Connection string</param>
-        /// <param name="tablename">Table name to drop</param>
-        /// <returns></returns>
-        public bool DropTable(string tablename)
+        /// <param name="tableschema">Table library/schema for table to drop.</param>
+        /// <param name="tablename">Table name to drop.</param>
+        /// <returns>True-Table dropped. False-Table not dropped.</returns>
+        public bool DropTable(string tableschema, string tablename)
         {
 
             int iRtnCmd = 0;
@@ -1251,7 +1391,7 @@ namespace IbmiOdbcDataAccess
                     throw new Exception("Database connection not open.");
 
                 // Build drop statement
-                query = String.Format("DROP TABLE {0}", tablename);
+                query = String.Format("DROP TABLE {0}.{1}",tableschema,tablename);
 
                 // create connection and command
                 using (OdbcCommand cmd = new OdbcCommand(query, _conn))
@@ -1263,15 +1403,14 @@ namespace IbmiOdbcDataAccess
                     iRtnCmd = cmd.ExecuteNonQuery();
                 }
                 // Return results
-                // Return results
-                if (iRtnCmd == -1)
+                if (iRtnCmd == 0)
                 {
-                    _lastError = String.Format("Table {0} was dropped/deleted.", tablename);
+                    _lastError = String.Format("Table {1}.{0} was dropped/deleted.", tablename,tableschema);
                     return true;
                 }
                 else
                 {
-                    _lastError = String.Format("Table {0} was not dropped/deleted.", tablename);
+                    _lastError = String.Format("Table {1}.{0} was not dropped/deleted.", tablename,tableschema);
                     return false;
                 }
             }
@@ -1286,9 +1425,12 @@ namespace IbmiOdbcDataAccess
         }
 
         /// <summary>
-        ///  Check for SQL Server table existence
+        ///  Check for IBM i table existence
         /// </summary>
-        public bool TableExists(string tablename)
+        /// <param name="tableschema">Table library/schema to check for.</param>
+        /// <param name="tablename">Table name to check for.</param>
+        /// <returns>True-Table exists. False-Table does not exist.</returns>
+        public bool TableExists(string tableschema,string tablename)
         {
             try
             {
@@ -1302,7 +1444,10 @@ namespace IbmiOdbcDataAccess
                 if (IsConnected() == false)
                     throw new Exception("Database connection not open.");
 
-                string query = String.Format("SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = '{0}'", tablename);
+                //string query = String.Format("SELECT TABLE_PARTITION FROM QSYS2.SYSPARTITIONSTAT WHERE TABLE_NAME = '{0}' and TABLE_SCHEMA = '{1}' ", tablename, tableschema);
+                
+                // Query table but only return first result row
+                string query = String.Format("SELECT * from {1}.{0} FETCH FIRST 1 ROWS ONLY", tablename, tableschema);
 
                 // Create temporary SQL Server data adapter using SQL Server connection string and SQL statement
                 using (OdbcDataAdapter adapter = new OdbcDataAdapter(query, _conn))
@@ -1322,15 +1467,15 @@ namespace IbmiOdbcDataAccess
                         return false;
 
                     }
-                    else if (dtWork.Rows.Count > 0)
+                    else if (dtWork.Rows.Count > 0) // AT least 1 row returned
                     {
-                        _lastError = String.Format("{0} rows were returned. Table {1} exists.", dtWork.Rows.Count, tablename);
+                        _lastError = String.Format("{0} rows were returned. Table {2}.{1} exists.", dtWork.Rows.Count, tablename,tableschema);
                         return true;
                     }
-                    else
+                    else // No rows returned but successful query so table must exist
                     {
-                        _lastError = String.Format("No rows were returned.");
-                        return false;
+                        _lastError = String.Format("No rows were returned, but it appears table {1}.{0} exists.",tablename,tableschema);
+                        return true;
                     }
 
                 }
@@ -1341,6 +1486,86 @@ namespace IbmiOdbcDataAccess
                 // If errors occur, return nothing.
                 return false;
             }
+        }
+
+        /// <summary>
+        /// Execute CL command via SQL call to QSYS.QCMDEXC
+        /// </summary>
+        /// <param name="clCommand">CL command line</param>
+        /// <returns>0=success,-2=errors</returns>
+        public int ExecClCommandQsys(string clCommand)
+        {
+            OdbcCommand oCmd = null;
+         
+            String strClCmd;
+
+            try
+            {
+
+                _lastError = "";
+
+                // Build CL SQL command
+                strClCmd = "CALL QSYS.QCMDEXC('" + clCommand.Trim() + "', " + (clCommand.Trim().Length).ToString("0000000000.00000").Replace(",", ".") + ")";
+
+                // Create command object to run CL command
+                oCmd = new OdbcCommand(strClCmd, _conn);
+
+                // Execute the command. 
+                // 0 is returned for success.
+                int i = oCmd.ExecuteNonQuery();
+            
+                return i;
+            }
+            catch (Exception ex)
+            {
+                _lastError=ex.Message; 
+                return -2;
+            }
+            finally
+            {
+                oCmd.Dispose();
+            }
+
+        }
+
+        /// <summary>
+        /// Execute CL command via SQL call to QSYS2.QCMDEXC
+        /// </summary>
+        /// <param name="clCommand">CL command line</param>
+        /// <returns>0=success,-2=errors</returns>
+        public int ExecClCommandQsys2(string clCommand)
+        {
+            OdbcCommand oCmd = null;
+
+            String strClCmd;
+
+            try
+            {
+
+                _lastError = "";
+
+                // Build CL SQL command
+                strClCmd = "CALL QSYS2.QCMDEXC('" + clCommand.Trim() + "', " + (clCommand.Trim().Length).ToString("0000000000.00000").Replace(",", ".") + ")";
+
+                // Create command object to run CL command
+                oCmd = new OdbcCommand(strClCmd, _conn);
+
+                // Execute the command. 
+                // 0 is returned for success.
+                int i = oCmd.ExecuteNonQuery();
+
+                return i;
+            }
+            catch (Exception ex)
+            {
+                _lastError = ex.Message;
+                return -2;
+            }
+            finally
+            {
+                oCmd.Dispose();
+            }
+
         }
 
     }
