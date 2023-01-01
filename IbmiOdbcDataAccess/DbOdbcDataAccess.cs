@@ -1,24 +1,18 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using System.Diagnostics;
-using System.Globalization;
-using System.IO;
-using System.Reflection;
-using System.Runtime.CompilerServices;
-using System.Security;
 using System.Text;
 using System.Data;
+using System.IO;
 using System.Data.Odbc;
-using static System.Net.WebRequestMethods;
+using System.Data.Common;
+
 
 namespace IbmiOdbcDataAccess
 {
     /// <summary>
-    /// This class file contains a general ODBC data class wrapper
-    /// to simplify ODBC work with IBM i data.
-    /// This class can also be inherited and extended from a business object.
+    /// IBM i Access ODBC Data Access
+    /// This class contains a general ODBC data class wrapper and is meant to simplify ODBC work with IBM i data.
+    /// The class can also be inherited and extended from a business object.
+    /// Extending and inheriting is a better strategy than modifying the core IbmiOdbcDataAccess class object.
     /// </summary>
     /// <remarks></remarks>
     public class DbOdbcDataAccess
@@ -27,10 +21,10 @@ namespace IbmiOdbcDataAccess
         // that is using this as a base class can use these variables too
         private string _lastError;
         private string _connectionString = "";
-        private DataTable _dTable;
+        private DataTable _dtTable;
         private int _iDtRows;
         private int _iDtColumns;
-        private OdbcDataReader _dReader;
+        private OdbcDataReader _dtReader;
         private OdbcConnection _conn;
         private OdbcCommand _cmd;
         private bool _bConnectionOpen = false;
@@ -38,8 +32,36 @@ namespace IbmiOdbcDataAccess
         private string _lastSql;
         private string _ibmiaccessconntemplate="Driver={IBM i Access ODBC Driver};System=@@SYSTEM;Uid=@@USERID;Pwd=@@PASS;CommitMode=0;EXTCOLINFO=1";
 
+
         /// <summary>
-        /// Get last error
+        /// Get internal OdbcConnection object.
+        /// </summary>
+        /// <returns>Return OdbcConnection object</returns>
+        public OdbcConnection GetOdbcConnection()
+        {
+            return _conn;
+        }
+
+        /// <summary>
+        /// Get internal DataReader object.
+        /// </summary>
+        /// <returns>Return DataReader object</returns>
+        public OdbcDataReader GetInternalDataReader()
+        {
+            return _dtReader;
+        }
+
+        /// <summary>
+        /// Get internal DataTable object.
+        /// </summary>
+        /// <returns>Return DataTable object</returns>
+        public DataTable GetInternalDataTable()
+        {
+            return _dtTable;
+        }
+
+        /// <summary>
+        /// Get last error.
         /// </summary>
         /// <returns>Error info from last call if set</returns>
         public string GetLastError()
@@ -48,7 +70,7 @@ namespace IbmiOdbcDataAccess
         }
 
         /// <summary>
-        /// Get last SQL query
+        /// Get last SQL query.
         /// </summary>
         /// <returns>Return last SQL statement executed if set</returns>
         public string GetLastSql()
@@ -101,8 +123,8 @@ namespace IbmiOdbcDataAccess
         }
 
         /// <summary>
-        /// Open database connection without passing explicit connection string
-        /// If no connection string passed, SetConnectionString must be called beforehand 
+        /// Open database connection without passing explicit connection string.
+        /// If no connection string passed, SetConnectionString must be called beforehand.
         /// to set connection string info.
         /// </summary>
         /// <returns>True=Connection opened successfully. False=Error occurred opening connection.</returns>
@@ -113,7 +135,7 @@ namespace IbmiOdbcDataAccess
         }
 
         /// <summary>
-        /// Return connection status
+        /// Return connection status.
         /// </summary>
         /// <returns>True=Connection is open. False=Connection is not open.</returns>
         public bool IsConnected()
@@ -122,7 +144,7 @@ namespace IbmiOdbcDataAccess
         }
 
         /// <summary>
-        /// Open database connection with set connection string
+        /// Open database connection with set connection string.
         /// </summary>
         /// <returns>True=Connection opened successfully. False=Error occurred opening connection.</returns>
         public bool OpenConnection(string strConnString)
@@ -249,7 +271,7 @@ namespace IbmiOdbcDataAccess
         /// <param name="sqlselect">SQL query</param>
         /// <param name="iStartRecord">Starting record. Default=0. If start and max are 0, all records will be exported to DataTable.</param>
         /// <param name="iMaxRecords">Ending record. Default = 0. If start and max are 0, all records will be exported to DataTable.</param>
-        /// <param name="tablename">Data table name</param>
+        /// <param name="tablename">DataTable name</param>
         /// <param name="queryTimeout">Query Timeout. 0=No Timeout,-1=Use default timeout which is usually 30 seconds</param>
         /// <returns>DataTable or null</returns>
         public DataTable ExecuteQueryToDataTable(string sqlselect, int iStartRecord = 0, int iMaxRecords = 0, string tableName = "Table1", int queryTimeout = -1)
@@ -257,7 +279,7 @@ namespace IbmiOdbcDataAccess
             try
             {
                 _lastError = "";
-                _dTable = null;
+                _dtTable = null;
                 _iDtRows = 0;
                 _iDtColumns = 0;
 
@@ -272,7 +294,7 @@ namespace IbmiOdbcDataAccess
                 // Save last SQL property
                 _lastSql = sqlselect;
 
-                // Create temporary SQL Server data adapter using SQL Server connection string and SQL statement
+                // Create temporary SQL Server DataAdapter using SQL Server connection string and SQL statement
                 using (OdbcDataAdapter adapter = new OdbcDataAdapter(sqlselect, _conn))
                 {
 
@@ -282,7 +304,7 @@ namespace IbmiOdbcDataAccess
                         adapter.SelectCommand.CommandTimeout = queryTimeout;
                     }
 
-                    // Fill a Data Table using the data adapter
+                    // Fill a DataTable using the DataAdapter
                     DataTable dtWork = new DataTable();
 
                     // If limits passed, limit records returned
@@ -295,18 +317,18 @@ namespace IbmiOdbcDataAccess
                         adapter.Fill(iStartRecord, iMaxRecords, dtWork);
                     }
 
-                    // Dispose of Adapter when we're done
+                    // Dispose of DataAdapter when we're done
                     adapter.Dispose();
 
-                    // Return the recordset to class level datatable so we can access indefinitely
-                    _dTable = dtWork;
-                    _dTable.TableName = tableName;
+                    // Return the recordset to class level DataTable so we can access indefinitely
+                    _dtTable = dtWork;
+                    _dtTable.TableName = tableName;
 
                     // Set row/col info
-                    _iDtRows = _dTable.Rows.Count;
-                    _iDtColumns = _dTable.Columns.Count;
+                    _iDtRows = _dtTable.Rows.Count;
+                    _iDtColumns = _dtTable.Columns.Count;
 
-                    return _dTable; // Return data table
+                    return _dtTable; // Return DataTable
                 }
             }
             catch (Exception ex)
@@ -318,14 +340,14 @@ namespace IbmiOdbcDataAccess
         }
 
         /// <summary>
-        /// Run SQL query and return as internal DataTable
+        /// Run SQL query and return as internal DataTable.
         /// This function takes an SQL SELECT statement and connection string and 
         /// runs the query to get the data we want to work with.
         /// </summary>
         /// <param name="sqlselect">SQL query</param>
         /// <param name="iStartRecord">Starting record. Default=0. If start and max are 0, all records will be exported to DataTable.</param>
         /// <param name="iMaxRecords">Ending record. Default = 0. If start and max are 0, all records will be exported to DataTable.</param>
-        /// <param name="tablename">Data table name</param>
+        /// <param name="tablename">DataTable name</param>
         /// <param name="queryTimeout">Query Timeout. 0=No Timeout,-1=Use default timeout which is usually 30 seconds</param>
         /// <returns>Boolean for query completion</returns>
         public bool ExecuteQueryToDataTableInternal(string sqlselect, int iStartRecord = 0, int iMaxRecords = 0, string tableName = "Table1", int queryTimeout = -1)
@@ -334,7 +356,7 @@ namespace IbmiOdbcDataAccess
             {
                 _lastError = "";
 
-                _dTable = null;
+                _dtTable = null;
                 _iDtRows = 0;
                 _iDtColumns = 0;
 
@@ -359,7 +381,7 @@ namespace IbmiOdbcDataAccess
                         adapter.SelectCommand.CommandTimeout = queryTimeout;
                     }
 
-                    // Fill a Data Table using the data adapter
+                    // Fill a DataTable using the DataAdapter
                     DataTable dtWork = new DataTable();
 
                     // If limits passed, limit records returned
@@ -372,18 +394,18 @@ namespace IbmiOdbcDataAccess
                         adapter.Fill(iStartRecord, iMaxRecords, dtWork);
                     }
 
-                    // Dispose of Adapter when we're done
+                    // Dispose of DataAdapter when we're done
                     adapter.Dispose();
 
-                    // Return the recordset to class level datatable so we can access indefinitely
-                    _dTable = dtWork;
-                    _dTable.TableName = tableName;
+                    // Return the recordset to class level DataTable so we can access indefinitely
+                    _dtTable = dtWork;
+                    _dtTable.TableName = tableName;
 
                     // Set row/col info
-                    _iDtRows = _dTable.Rows.Count;
-                    _iDtColumns = _dTable.Columns.Count;
+                    _iDtRows = _dtTable.Rows.Count;
+                    _iDtColumns = _dtTable.Columns.Count;
 
-                    return true; // Return data table
+                    return true; // Return DataTable
                 }
             }
             catch (Exception ex)
@@ -395,7 +417,7 @@ namespace IbmiOdbcDataAccess
         }
 
         /// <summary>
-        /// Get internal Data Table contents to delimited string
+        /// Get internal DataTable contents to delimited string.
         /// </summary>
         /// <param name="delim">Field delimiter. Default=|</param>
         /// <param name="replace">True=replace output file is it exists. False=Dont replace. Default=False</param>
@@ -408,6 +430,7 @@ namespace IbmiOdbcDataAccess
             StringBuilder sb = new StringBuilder();
             StringBuilder sbHdr = new StringBuilder();
             StringBuilder sbDtl = new StringBuilder();
+
             //string sql = "";
             string sWorkSpace = "";
             bool bOutputFileExists = false;
@@ -430,9 +453,9 @@ namespace IbmiOdbcDataAccess
                 else
                     sWorkSpace = "";
 
-                // Verify that Data Table has data
-                if (_dTable == null)
-                    throw new Exception("Data Table has no data. Export cancelled.");
+                // Verify that DataTable has data
+                if (_dtTable == null)
+                    throw new Exception("DataTable has no data. Export cancelled.");
 
                 // Get first record so we can extract field names in query result
                 int count = 0;
@@ -442,19 +465,19 @@ namespace IbmiOdbcDataAccess
                 {
 
                     // Extract all the local filed names
-                    for (int j = 0; j <= _dTable.Columns.Count - 1; j++)
+                    for (int j = 0; j <= _dtTable.Columns.Count - 1; j++)
                     {
-                        if (count == _dTable.Columns.Count - 1)
+                        if (count == _dtTable.Columns.Count - 1)
                         {
                             if (removeLineFeeds)
-                                sbHdr.Append(_dTable.Columns[j].ColumnName.Replace("\r\n", "<CRLF>").Replace("\r", "<CR>").Replace("\n", "<LF>"));
+                                sbHdr.Append(_dtTable.Columns[j].ColumnName.Replace("\r\n", "<CRLF>").Replace("\r", "<CR>").Replace("\n", "<LF>"));
                             else
-                                sbHdr.Append(_dTable.Columns[j].ColumnName.Trim());
+                                sbHdr.Append(_dtTable.Columns[j].ColumnName.Trim());
                         }
                         else if (removeLineFeeds)
-                            sbHdr.Append(_dTable.Columns[j].ColumnName.Trim().Replace("\r\n", "<CRLF>").Replace("\r", "<CR>").Replace("\n", "<LF>") + sWorkSpace + delim);
+                            sbHdr.Append(_dtTable.Columns[j].ColumnName.Trim().Replace("\r\n", "<CRLF>").Replace("\r", "<CR>").Replace("\n", "<LF>") + sWorkSpace + delim);
                         else
-                            sbHdr.Append(_dTable.Columns[j].ColumnName.Trim() + sWorkSpace + delim);
+                            sbHdr.Append(_dtTable.Columns[j].ColumnName.Trim() + sWorkSpace + delim);
                         count += 1;
                     }
                     // Output new line after record is output
@@ -463,13 +486,13 @@ namespace IbmiOdbcDataAccess
 
                 // Process all the records to delimited string buffer
                 // Replace CRLF, CR and LF values with placeholders.
-                foreach (DataRow dr in _dTable.Rows)
+                foreach (DataRow dr in _dtTable.Rows)
                 {
                     // Extract all field data
                     count = 0;
-                    for (int j = 0; j <= _dTable.Columns.Count - 1; j++)
+                    for (int j = 0; j <= _dtTable.Columns.Count - 1; j++)
                     {
-                        if (count == _dTable.Columns.Count - 1)
+                        if (count == _dtTable.Columns.Count - 1)
                         {
                             if (removeLineFeeds)
                                 sbDtl.Append(dblqt + dr[j].ToString().Replace("\r\n", "<CRLF>").Replace("\r", "<CR>").Replace("\n", "<LF>") + dblqt);
@@ -496,7 +519,7 @@ namespace IbmiOdbcDataAccess
             }
         }
         /// <summary>
-        /// Export internal Data Table contents to delimited file
+        /// Export internal DataTable contents to delimited file.
         /// If file exists and replace not selected, data will be appended 
         /// to existing file without any additional column headings.
         /// </summary>
@@ -512,6 +535,7 @@ namespace IbmiOdbcDataAccess
             StringBuilder sb = new StringBuilder();
             StringBuilder sbHdr = new StringBuilder();
             StringBuilder sbDtl = new StringBuilder();
+
             //string sql = "";
             string sWorkSpace = "";
             bool bOutputFileExists = false;
@@ -538,9 +562,9 @@ namespace IbmiOdbcDataAccess
                 if (outputFile.Trim() == "")
                     throw new Exception("Output file must be specified.");
 
-                // Verify that Data Table has data
-                if (_dTable == null)
-                    throw new Exception("Data Table has no data. Export cancelled.");
+                // Verify that DataTable has data
+                if (_dtTable == null)
+                    throw new Exception("DataTable has no data. Export cancelled.");
 
                 // If file exists and replace not selected bail
                 if (System.IO.File.Exists(outputFile))
@@ -564,19 +588,19 @@ namespace IbmiOdbcDataAccess
                 {
 
                     // Extract all the local filed names
-                    for (int j = 0; j <= _dTable.Columns.Count - 1; j++)
+                    for (int j = 0; j <= _dtTable.Columns.Count - 1; j++)
                     {
-                        if (count == _dTable.Columns.Count - 1)
+                        if (count == _dtTable.Columns.Count - 1)
                         {
                             if (removeLineFeeds)
-                                sbHdr.Append(_dTable.Columns[j].ColumnName.Replace("\r\n", "<CRLF>").Replace("\r", "<CR>").Replace("\n", "<LF>"));
+                                sbHdr.Append(_dtTable.Columns[j].ColumnName.Replace("\r\n", "<CRLF>").Replace("\r", "<CR>").Replace("\n", "<LF>"));
                             else
-                                sbHdr.Append(_dTable.Columns[j].ColumnName.Trim());
+                                sbHdr.Append(_dtTable.Columns[j].ColumnName.Trim());
                         }
                         else if (removeLineFeeds)
-                            sbHdr.Append(_dTable.Columns[j].ColumnName.Trim().Replace("\r\n", "<CRLF>").Replace("\r", "<CR>").Replace("\n", "<LF>") + sWorkSpace + delim);
+                            sbHdr.Append(_dtTable.Columns[j].ColumnName.Trim().Replace("\r\n", "<CRLF>").Replace("\r", "<CR>").Replace("\n", "<LF>") + sWorkSpace + delim);
                         else
-                            sbHdr.Append(_dTable.Columns[j].ColumnName.Trim() + sWorkSpace + delim);
+                            sbHdr.Append(_dtTable.Columns[j].ColumnName.Trim() + sWorkSpace + delim);
                         count += 1;
                     }
                     // Output new line after record is output
@@ -585,13 +609,13 @@ namespace IbmiOdbcDataAccess
 
                 // Process all the records to delimited string buffer
                 // Replace CRLF, CR and LF values with placeholders.
-                foreach (DataRow dr in _dTable.Rows)
+                foreach (DataRow dr in _dtTable.Rows)
                 {
                     // Extract all field data
                     count = 0;
-                    for (int j = 0; j <= _dTable.Columns.Count - 1; j++)
+                    for (int j = 0; j <= _dtTable.Columns.Count - 1; j++)
                     {
-                        if (count == _dTable.Columns.Count - 1)
+                        if (count == _dtTable.Columns.Count - 1)
                         {
                             if (removeLineFeeds)
                                 sbDtl.Append(dblqt + dr[j].ToString().Replace("\r\n", "<CRLF>").Replace("\r", "<CR>").Replace("\n", "<LF>") + dblqt);
@@ -612,8 +636,8 @@ namespace IbmiOdbcDataAccess
                 System.IO.File.AppendAllText(outputFile, sbHdr.ToString() + sbDtl.ToString(), Encoding.UTF8);
 
                 // Set completion
-                _iLastExportCount = _dTable.Rows.Count;
-                _lastError = _dTable.Rows.Count + " rows were exported to delimited file " + outputFile;
+                _iLastExportCount = _dtTable.Rows.Count;
+                _lastError = _dtTable.Rows.Count + " rows were exported to delimited file " + outputFile;
 
                 return true;
             }
@@ -624,7 +648,7 @@ namespace IbmiOdbcDataAccess
             }
         }
         /// <summary>
-        /// Export internal Data Reader contents to delimited file. 
+        /// Export internal DataReader contents to delimited file. 
         /// If file exists and replace not selected, data will be appended 
         /// to existing file without any additional column headings.
         /// </summary>
@@ -640,6 +664,7 @@ namespace IbmiOdbcDataAccess
             StringBuilder sb = new StringBuilder();
             StringBuilder sbHdr = new StringBuilder();
             StringBuilder sbDtl = new StringBuilder();
+
             //string sql = "";
             string sWorkSpace = "";
             int rowcount = 0;
@@ -660,8 +685,8 @@ namespace IbmiOdbcDataAccess
                 if (outputFile.Trim() == "")
                     throw new Exception("Output file must be specified.");
 
-                // Verify that Data Table has data
-                if (_dReader == null)
+                // Verify that DataTable has data
+                if (_dtReader == null)
                     throw new Exception("Data Reader has no data. Export cancelled.");
 
                 // If file exists and replace not selected bail
@@ -686,19 +711,19 @@ namespace IbmiOdbcDataAccess
                 {
 
                     // Extract all the local field names
-                    for (int j = 0; j <= _dReader.FieldCount - 1; j++)
+                    for (int j = 0; j <= _dtReader.FieldCount - 1; j++)
                     {
-                        if (count == _dReader.FieldCount - 1)
+                        if (count == _dtReader.FieldCount - 1)
                         {
                             if (removeLineFeeds)
-                                sbHdr.Append(_dReader.GetName(j).Trim().Replace("\r\n", "<CRLF>").Replace("\r", "<CR>").Replace("\n", "<LF>"));
+                                sbHdr.Append(_dtReader.GetName(j).Trim().Replace("\r\n", "<CRLF>").Replace("\r", "<CR>").Replace("\n", "<LF>"));
                             else
-                                sbHdr.Append(_dReader.GetName(j).Trim());
+                                sbHdr.Append(_dtReader.GetName(j).Trim());
                         }
                         else if (removeLineFeeds)
-                            sbHdr.Append(_dReader.GetName(j).Trim().Replace("\r\n", "<CRLF>").Replace("\r", "<CR>").Replace("\n", "<LF>") + sWorkSpace + delim);
+                            sbHdr.Append(_dtReader.GetName(j).Trim().Replace("\r\n", "<CRLF>").Replace("\r", "<CR>").Replace("\n", "<LF>") + sWorkSpace + delim);
                         else
-                            sbHdr.Append(_dReader.GetName(j).Trim() + sWorkSpace + delim);
+                            sbHdr.Append(_dtReader.GetName(j).Trim() + sWorkSpace + delim);
                         count += 1;
                     }
                     // Output new line after record is output
@@ -707,23 +732,23 @@ namespace IbmiOdbcDataAccess
 
                 // Process all the records to delimited string buffer
                 // Replace CRLF, CR and LF values with placeholders.
-                while (_dReader.Read())
+                while (_dtReader.Read())
                 {
                     // Extract all field data
                     count = 0;
-                    for (int j = 0; j <= _dReader.FieldCount - 1; j++)
+                    for (int j = 0; j <= _dtReader.FieldCount - 1; j++)
                     {
-                        if (count == _dReader.FieldCount - 1)
+                        if (count == _dtReader.FieldCount - 1)
                         {
                             if (removeLineFeeds)
-                                sbDtl.Append(_dReader.GetValue(j).ToString().Replace("\r\n", "<CRLF>").Replace("\r", "<CR>").Replace("\n", "<LF>"));
+                                sbDtl.Append(_dtReader.GetValue(j).ToString().Replace("\r\n", "<CRLF>").Replace("\r", "<CR>").Replace("\n", "<LF>"));
                             else
-                                sbDtl.Append(_dReader.GetValue(j).ToString());
+                                sbDtl.Append(_dtReader.GetValue(j).ToString());
                         }
                         else if (removeLineFeeds)
-                            sbDtl.Append(_dReader.GetValue(j).ToString().Replace("\r\n", "<CRLF>").Replace("\r", "<CR>").Replace("\n", "<LF>") + sWorkSpace + delim);
+                            sbDtl.Append(_dtReader.GetValue(j).ToString().Replace("\r\n", "<CRLF>").Replace("\r", "<CR>").Replace("\n", "<LF>") + sWorkSpace + delim);
                         else
-                            sbDtl.Append(_dReader.GetValue(j).ToString() + sWorkSpace + delim);
+                            sbDtl.Append(_dtReader.GetValue(j).ToString() + sWorkSpace + delim);
                         count += 1;
                     }
                     // Output new line after record is output
@@ -749,7 +774,7 @@ namespace IbmiOdbcDataAccess
         }
 
         /// <summary>
-        /// Query Table and Export Internal Data Reader contents to delimited file
+        /// Query Table and Export Internal DataReader contents to delimited file.
         /// If file exists and replace not selected, data will be appended 
         /// to existing file without any additional column headings.
         /// </summary>
@@ -762,7 +787,7 @@ namespace IbmiOdbcDataAccess
         /// <param name="outputHeadings">Output column headings. True - output headings, False-No headings. Default=True</param>
         /// <param name="queryTimeout">Query Timeout. 0=No Timeout,-1=Use default timeout which is usually 30 seconds</param>
         /// <returns>True=Success,False=Errors</returns>
-        public bool QueryAndExportRecordsToDelimFileDr(string sqlselect, string outputFile, string delim = ",", bool replace = false, bool removeLineFeeds = true, bool doubleQuotes = true, bool spaceBeforeDelim = true, bool outputHeadings = true, int queryTimeout = -1)
+        public bool QueryRecordsToDelimFileDr(string sqlselect, string outputFile, string delim = ",", bool replace = false, bool removeLineFeeds = true, bool doubleQuotes = true, bool spaceBeforeDelim = true, bool outputHeadings = true, int queryTimeout = -1)
         {
             bool rtnquery;
 
@@ -776,7 +801,7 @@ namespace IbmiOdbcDataAccess
                 if (rtnquery == false)
                     throw new Exception("Query failed. Error: " + GetLastError());
 
-                // Now export the Data Reader results to delimited file
+                // Now export the DataReader results to delimited file
                 return ExportRecordsToDelimFileDr(outputFile, delim, replace, removeLineFeeds, doubleQuotes, spaceBeforeDelim, outputHeadings);
             }
             catch (Exception ex)
@@ -787,7 +812,7 @@ namespace IbmiOdbcDataAccess
         }
 
         /// <summary>
-        /// Query Table and Export Internal Data Table contents to delimited file
+        /// Query Table and Export Internal DataTable contents to delimited file.
         /// If file exists and replace not selected, data will be appended 
         /// to existing file without any additional column headings.
         /// </summary>
@@ -800,7 +825,7 @@ namespace IbmiOdbcDataAccess
         /// <param name="outputHeadings">Output column headings. True - output headings, False-No headings. Default=True</param>
         /// <param name="queryTimeout">Query Timeout. 0=No Timeout,-1=Use default timeout which is usually 30 seconds</param>
         /// <returns>True=Success,False=Errors</returns>
-        public bool QueryAndExportRecordsToDelimFileDt(string sqlselect, string outputFile, string delim = ",", bool replace = false, bool removeLineFeeds = true, bool doubleQuotes = true, bool spaceBeforeDelim = true, bool outputHeadings = true, int queryTimeout = -1)
+        public bool QueryRecordsToDelimFileDt(string sqlselect, string outputFile, string delim = ",", bool replace = false, bool removeLineFeeds = true, bool doubleQuotes = true, bool spaceBeforeDelim = true, bool outputHeadings = true, int queryTimeout = -1)
         {
             bool rtnquery;
 
@@ -814,7 +839,7 @@ namespace IbmiOdbcDataAccess
                 if (rtnquery == false)
                     throw new Exception("Query failed. Error: " + GetLastError());
 
-                // Now export the Data Table results to delimited file
+                // Now export the DataTable results to delimited file
                 return ExportRecordsToDelimFileDt(outputFile, delim, replace, removeLineFeeds, doubleQuotes, spaceBeforeDelim, outputHeadings);
             }
             catch (Exception ex)
@@ -823,6 +848,259 @@ namespace IbmiOdbcDataAccess
                 return false;
             }
         }
+
+        /// <summary>
+        /// Query Table and Export Internal DataTable contents to delimited string.
+        /// </summary>
+        /// <param name="sqlselect">SQL select</param>
+        /// <param name="delim">Field delimiter. Default=|</param>
+        /// <param name="removeLineFeeds">True=replace CRLF, LF and CR with placeholders values of <CRLF>, <LF> or <CR>. False=Don't replace linefeeds in data.</param>
+        /// <param name="doubleQuotes">Output double quotes. True - output quotes, False-No quotes. Default=False</param>
+        /// <param name="outputHeadings">Output column headings. True - output headings, False-No headings. Default=True</param>
+        /// <param name="queryTimeout">Query Timeout. 0=No Timeout,-1=Use default timeout which is usually 30 seconds</param>
+        /// <returns>Query results string or blanks</returns>
+        public string QueryRecordsToDelimStringDt(string sqlselect, string delim = ",", bool removeLineFeeds = true, bool doubleQuotes = true, bool spaceBeforeDelim = true, bool outputHeadings = true, int queryTimeout = -1)
+        {
+            bool rtnquery;
+
+            try
+            {
+
+                // Attempt to run query to DataTable. 
+                rtnquery = ExecuteQueryToDataTableInternal(sqlselect, 0, 0, "Table1", queryTimeout);
+
+                // Bail if errors
+                if (rtnquery == false)
+                    throw new Exception("Query failed. Error: " + GetLastError());
+
+                // Now export the DataTable results to delimited string
+                return GetQueryResultsDataTableToCsvString(delim);
+            }
+            catch (Exception ex)
+            {
+                _lastError = ex.Message;
+                return "";
+            }
+        }
+
+        /// <summary>
+        /// Query Table and Export Internal DataTable contents to JSON file.
+        /// If file exists and replace not selected, data will be appended 
+        /// to existing file without any additional column headings.
+        /// </summary>
+        /// <param name="sqlselect">SQL select</param>
+        /// <param name="outputfile">Output file</param>
+        /// <param name="replace">True=replace output file is it exists. False=Dont replace. Default=False</param>
+        /// <param name="queryTimeout">Query Timeout. 0=No Timeout,-1=Use default timeout which is usually 30 seconds</param>
+        /// <param name="tableName">DataTable name to use. Default = "Table1"</param>
+        /// <returns>True=Success,False=Errors</returns>
+        public bool QueryRecordsToJsonFileDt(string sqlselect, string outputfile, bool replace = false, int queryTimeout = -1,string tableName="Table1")
+        {
+            bool rtnquery;
+
+            try
+            {
+
+                // Attempt to run query to DataTable. 
+                rtnquery = ExecuteQueryToDataTableInternal(sqlselect, 0, 0, tableName, queryTimeout);
+
+                // Bail if errors
+                if (rtnquery == false)
+                    throw new Exception("Query failed. Error: " + GetLastError());
+
+                // Now export the DataTable results to JSON file
+                return GetQueryResultsDataTableToJsonFile(outputfile,replace);
+
+            }
+            catch (Exception ex)
+            {
+                _lastError = ex.Message;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Query Table and Export Internal DataTable contents to JSON string.
+        /// </summary>
+        /// <param name="sqlselect">SQL select</param>
+        /// <param name="queryTimeout">Query Timeout. 0=No Timeout,-1=Use default timeout which is usually 30 seconds</param>
+        /// <param name="tableName">DataTable name to use. Default = "Table1"</param>
+        /// <returns>Query result as JSON string or blanks</returns>
+        public string QueryRecordsToJsonStringDt(string sqlselect,int queryTimeout = -1, string tableName = "Table1")
+        {
+            bool rtnquery;
+
+            try
+            {
+
+                // Attempt to run query to DataTable. 
+                rtnquery = ExecuteQueryToDataTableInternal(sqlselect, 0, 0, tableName, queryTimeout);
+
+                // Bail if errors
+                if (rtnquery == false)
+                    throw new Exception("Query failed. Error: " + GetLastError());
+
+                // Now export the DataTable results to JSON string
+                return GetQueryResultsDataTableToJsonString();
+
+            }
+            catch (Exception ex)
+            {
+                _lastError = ex.Message;
+                return "";
+            }
+        }
+
+        /// <summary>
+        /// Query Table and Export Internal DataReader contents to JSON file.
+        /// If file exists and replace not selected, data will be appended 
+        /// to existing file without any additional column headings.
+        /// </summary>
+        /// <param name="sqlselect">SQL select</param>
+        /// <param name="outputfile">Output file</param>
+        /// <param name="replace">True=replace output file is it exists. False=Dont replace. Default=False</param>
+        /// <param name="queryTimeout">Query Timeout. 0=No Timeout,-1=Use default timeout which is usually 30 seconds</param>
+        /// <param name="tableName">DataTable name to use. Default = "Table1"</param>
+        /// <returns>True=Success,False=Errors</returns>
+        public bool QueryRecordsToJsonFileDr(string sqlselect, string outputfile, bool replace = false, int queryTimeout = -1,string tableName="Table1")
+        {
+            bool rtnquery;
+
+            try
+            {
+
+                // Attempt to run query to DataReader. 
+                rtnquery = ExecuteQueryToDataReaderInternal(sqlselect, queryTimeout);
+
+                // Bail if errors
+                if (rtnquery == false)
+                    throw new Exception("Query failed. Error: " + GetLastError());
+
+                // Convert the internal DataReader to internal DataTable
+                _dtTable = ConvertDataReaderToDataTable(_dtReader);
+
+                // Now export the internal DataTable results to JSON file
+                return GetQueryResultsDataTableToJsonFile(outputfile, replace);
+            }
+            catch (Exception ex)
+            {
+                _lastError = ex.Message;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Query Table and Export Internal DataTable contents to XML file.
+        /// If file exists and replace not selected, data will be appended 
+        /// to existing file without any additional column headings.
+        /// </summary>
+        /// <param name="sqlselect">SQL select</param>
+        /// <param name="outputfile">Output file</param>
+        /// <param name="replace">True=replace output file is it exists. False=Dont replace. Default=False</param>
+        /// <param name="queryTimeout">Query Timeout. 0=No Timeout,-1=Use default timeout which is usually 30 seconds</param>
+        ///  <param name="writeSchema">Write XML schema in return data</param>
+        ///  <param name="tableName">DataTable name to use. Default = "Table1"</param>
+        /// <returns>True=Success,False=Errors</returns>
+        public bool QueryRecordsToXmlFileDt(string sqlselect, string outputfile, bool replace = false, int queryTimeout = -1,bool writeSchema = false,string tableName="Table1")
+        {
+            bool rtnquery;
+
+            try
+            {
+
+                // Attempt to run query to DataTable. 
+                rtnquery = ExecuteQueryToDataTableInternal(sqlselect, 0, 0, tableName, queryTimeout);
+
+                // Bail if errors
+                if (rtnquery == false)
+                    throw new Exception("Query failed. Error: " + GetLastError());
+
+                // Now export the internal DataTable results to XML file
+                return GetQueryResultsDataTableToXmlFile(outputfile, tableName, writeSchema, replace);
+
+
+            }
+            catch (Exception ex)
+            {
+                _lastError = ex.Message;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Query Table and Export Internal DataTable contents to XML string.
+        /// </summary>
+        /// <param name="sqlselect">SQL select</param>
+        /// <param name="queryTimeout">Query Timeout. 0=No Timeout,-1=Use default timeout which is usually 30 seconds</param>
+        ///  <param name="writeSchema">Write XML schema in return data</param>
+        ///  <param name="tableName">DataTable name to use. Default = "Table1"</param>
+        /// <returns>True=Success,False=Errors</returns>
+        public string QueryRecordsToXmlStringDt(string sqlselect, int queryTimeout = -1, bool writeSchema = false, string tableName = "Table1")
+        {
+            bool rtnquery;
+
+            try
+            {
+
+                // Attempt to run query to DataTable. 
+                rtnquery = ExecuteQueryToDataTableInternal(sqlselect, 0, 0, tableName, queryTimeout);
+
+                // Bail if errors
+                if (rtnquery == false)
+                    throw new Exception("Query failed. Error: " + GetLastError());
+
+                // Now export the internal DataTable results to XML string
+                return GetQueryResultsDataTableToXmlString(tableName, writeSchema);
+
+            }
+            catch (Exception ex)
+            {
+                _lastError = ex.Message;
+                return "";
+            }
+        }
+
+        /// <summary>
+        /// Query Table and Export Internal DataReader contents to XML file.
+        /// If file exists and replace not selected, data will be appended 
+        /// to existing file without any additional column headings.
+        /// </summary>
+        /// <param name="sqlselect">SQL select</param>
+        /// <param name="outputfile">Output file</param>
+        /// <param name="replace">True=replace output file is it exists. False=Dont replace. Default=False</param>
+        /// <param name="queryTimeout">Query Timeout. 0=No Timeout,-1=Use default timeout which is usually 30 seconds</param>
+        ///  <param name="writeSchema">Write XML schema in return data</param>
+        ///  <param name="tableName">DataTable name to use. Default = "Table1"</param>
+        /// <returns>True=Success,False=Errors</returns>
+        public bool QueryRecordsToXmlFileDr(string sqlselect, string outputfile, bool replace = false, int queryTimeout = -1,bool writeSchema=false, string tableName = "Table1")
+        {
+            bool rtnquery;
+
+            try
+            {
+
+                // Attempt to run query to DataReader. 
+                rtnquery = ExecuteQueryToDataReaderInternal(sqlselect, queryTimeout);
+
+                // Bail if errors
+                if (rtnquery == false)
+                    throw new Exception("Query failed. Error: " + GetLastError());
+
+                // Convert the internal DataReader to internal DataTable
+                _dtTable = ConvertDataReaderToDataTable(_dtReader);
+
+                // Now export the internal DataTable results to XML file
+                return GetQueryResultsDataTableToXmlFile(outputfile,tableName,writeSchema, replace);
+
+            }
+            catch (Exception ex)
+            {
+                _lastError = ex.Message;
+                return false;
+            }
+
+        }
+
         /// <summary>
         /// Get last export record count
         /// </summary>
@@ -847,8 +1125,8 @@ namespace IbmiOdbcDataAccess
             {
                 _lastError = "";
 
-                _dTable = null;
-                _dReader = null;
+                _dtTable = null;
+                _dtReader = null;
                 _iDtRows = 0;
                 _iDtColumns = 0;
 
@@ -875,7 +1153,7 @@ namespace IbmiOdbcDataAccess
                 // Set SQL
                 _cmd.CommandText = sqlselect;
                 // Get the data reader so we can process one record at a time
-                _dReader = _cmd.ExecuteReader();
+                _dtReader = _cmd.ExecuteReader();
 
                 return true;
             }
@@ -902,8 +1180,8 @@ namespace IbmiOdbcDataAccess
             {
                 _lastError = "";
 
-                _dTable = null;
-                _dReader = null;
+                _dtTable = null;
+                _dtReader = null;
                 _iDtRows = 0;
                 _iDtColumns = 0;
 
@@ -942,16 +1220,16 @@ namespace IbmiOdbcDataAccess
         }
 
         /// <summary>
-        /// Get Internal Data Table reference. Must be populated using ExecuteQueryDataTableInternal.
+        /// Get Internal DataTable object reference. Must be populated using ExecuteQueryDataTableInternal.
         /// </summary>
-        /// <returns>Data Table</returns>
+        /// <returns>DataTable object or null on errors</returns>
         public DataTable GetDataTableInternal()
         {
             try
             {
                 _lastError = "";
 
-                return _dTable;
+                return _dtTable;
             }
             catch (Exception ex)
             {
@@ -961,16 +1239,16 @@ namespace IbmiOdbcDataAccess
             }
         }
         /// <summary>
-        /// Get Internal Data Reader reference. Must be populated using ExecuteQueryDataReaderInternal.
+        /// Get Internal DataReader object reference. Must be populated using ExecuteQueryDataReaderInternal.
         /// </summary>
-        /// <returns>Data Reader</returns>
+        /// <returns>DataReader object or null on errors</returns>
         public OdbcDataReader GetDataReaderInternal()
         {
             try
             {
                 _lastError = "";
 
-                return _dReader;
+                return _dtReader;
             }
             catch (Exception ex)
             {
@@ -982,7 +1260,7 @@ namespace IbmiOdbcDataAccess
         /// <summary>
         /// Get Internal Data Connection reference. 
         /// </summary>
-        /// <returns>Data Reader</returns>
+        /// <returns>DataReader object or null on errors</returns>
         public OdbcConnection GetDataConnection()
         {
             try
@@ -999,16 +1277,16 @@ namespace IbmiOdbcDataAccess
             }
         }
         /// <summary>
-        /// Get next row from internal Data Reader 
+        /// Get next row from internal DataReader. 
         /// </summary>
-        /// <returns>True-Next record read to internal reader, False-no records read. We're done</returns>
+        /// <returns>True-Next record read to internal reader, False-No more records read or error. </returns>
         public bool GetNextRowDrInternal()
         {
             try
             {
                 _lastError = "";
 
-                return _dReader.Read();
+                return _dtReader.Read();
             }
             catch (Exception ex)
             {
@@ -1018,20 +1296,20 @@ namespace IbmiOdbcDataAccess
             }
         }
         /// <summary>
-        /// Close data reader
+        /// Close DataReader
         /// </summary>
-        /// <returns></returns>
+        /// <returns>True-Internal DataReader closed. False-Internal DataReader did not close or error occurred.</returns>
         public bool CloseDataReaderInternal()
         {
             try
             {
                 _lastError = "";
 
-                if (_dReader != null)
+                if (_dtReader != null)
                 {
-                    _dReader.Close();
+                    _dtReader.Close();
                 }
-                _dReader = null;
+                _dtReader = null;
 
                 return true;
             }
@@ -1043,7 +1321,7 @@ namespace IbmiOdbcDataAccess
             }
         }
         /// <summary>
-        /// Get Field from Data Reader based on ordinal column position
+        /// Get Field from DataReader based on ordinal column position
         /// </summary>
         /// <returns></returns>
         public string GetColValueByPosDr(int iCol)
@@ -1053,7 +1331,7 @@ namespace IbmiOdbcDataAccess
                 _lastError = "";
 
                 // get selected column number as tring
-                return _dReader.GetValue(iCol).ToString();
+                return _dtReader.GetValue(iCol).ToString();
             }
             catch (Exception ex)
             {
@@ -1063,7 +1341,7 @@ namespace IbmiOdbcDataAccess
             }
         }
         /// <summary>
-        /// Return current row from data reader as delimited record
+        /// Return current row from DataReader as delimited record.
         /// </summary>
         /// <param name="sDelim">Field delimiter. Default = ,</param>
         /// <returns></returns>
@@ -1076,9 +1354,9 @@ namespace IbmiOdbcDataAccess
 
                 _lastError = "";
 
-                // Build delimited data from current data reader row
-                for (iCurCol = 0; iCurCol <= _dReader.FieldCount - 1; iCurCol++)
-                    swork = swork + _dReader.GetValue(iCurCol).ToString() + sDelim;
+                // Build delimited data from current DataReader row
+                for (iCurCol = 0; iCurCol <= _dtReader.FieldCount - 1; iCurCol++)
+                    swork = swork + _dtReader.GetValue(iCurCol).ToString() + sDelim;
 
                 // Trim last delimiter at tail end of string
                 if (swork.Length > 0)
@@ -1093,37 +1371,48 @@ namespace IbmiOdbcDataAccess
             }
         }
         /// <summary>
-        /// Return data reader field/column count
+        /// Return internal DataReader field/column count.
+        /// Same as GetFieldCountDR()
         /// </summary>
-        /// <returns></returns>
+        /// <returns>Field/column count from internal DataReader results.</returns>
         public int GetColCountDr()
         {
-            return _dReader.FieldCount;
+            return _dtReader.FieldCount;
         }
 
         /// <summary>
-        /// Return data table row count
+        /// Return internal DataReader field/column count.
+        /// Same as GetColCountDR()
         /// </summary>
-        /// <returns></returns>
+        /// <returns>Field/column count from internal DataReader results.</returns>
+        public int GetFieldCountDr()
+        {
+            return _dtReader.FieldCount;
+        }
+
+        /// <summary>
+        /// Return internal DataTable row count.
+        /// </summary>
+        /// <returns>Row count from internal DataTable</returns>
         public int GetRowCountDt()
         {
             return _iDtRows;
         }
 
         /// <summary>
-        /// Return data table column count
+        /// Return internal DataTable column count.
         /// </summary>
-        /// <returns></returns>
+        /// <returns>Column count from internal DataTable</returns>
         public int GetColCountDt()
         {
             return _iDtColumns;
         }
         /// <summary>
-        /// Return Data Table column value for specified row/column
+        /// Return internal DataTable column value for specified row/column.
         /// </summary>
-        /// <param name="iRow">Data table row number</param>
-        /// <param name="iCol">Data table column number</param>
-        /// <returns></returns>
+        /// <param name="iRow">DataTable row number</param>
+        /// <param name="iCol">DataTable column number</param>
+        /// <returns>Return row/col value from internal DataTable as string</returns>
         public string GetRowValueByPosDt(int iRow, int iCol)
         {
             try
@@ -1132,7 +1421,7 @@ namespace IbmiOdbcDataAccess
                 _lastError = "";
                 //swork = _dTable.Rows[iRow].Item[iCol].ToString;
                 // TODO - Test this after conv to C#
-                swork = _dTable.Rows[iRow][iCol].ToString();
+                swork = _dtTable.Rows[iRow][iCol].ToString();
                 return swork;
             }
             catch (Exception ex)
@@ -1143,11 +1432,11 @@ namespace IbmiOdbcDataAccess
         }
 
         /// <summary>
-        /// Return data table column for specified row based on column field name
+        /// Return internal DataTable column for specified row based on column field name.
         /// </summary>
-        /// <param name="iRow">Data table row number</param>
-        /// <param name="sColName">Data table column name</param>
-        /// <returns>Field value or **ERROR if errors</returns>
+        /// <param name="iRow">DataTable row number</param>
+        /// <param name="sColName">DataTable column name</param>
+        /// <returns>Return row/col value from internal DataTable as string or **ERROR if any errors occurred</returns>
         public string GetRowValueByNameDt(int iRow, string sColName)
         {
             try
@@ -1155,7 +1444,7 @@ namespace IbmiOdbcDataAccess
                 string swork = "";
                 _lastError = "";
                 // TODO - test this after conversion to C#
-                swork = _dTable.Rows[iRow][sColName].ToString();
+                swork = _dtTable.Rows[iRow][sColName].ToString();
                 return swork;
             }
             catch (Exception ex)
@@ -1165,12 +1454,12 @@ namespace IbmiOdbcDataAccess
             }
         }
         /// <summary>
-        /// Return Data Reader column for current row based on column field name.
+        /// Return internal DataReader column for current row based on column field name.
         /// This is a convenience function because the Data Reader needs ordinal positions
         /// when returning field data.
         /// </summary>
         /// <param name="sColName">Column field name</param>
-        /// <returns>Field value or **ERROR if errors</returns>
+        /// <returns>Return col value from current data row as string or **ERROR if any errors occurred</returns>
         public string GetColValueByNameDr(string sColName)
         {
             try
@@ -1183,7 +1472,7 @@ namespace IbmiOdbcDataAccess
                 // Get ordinal if field exists
                 iCol = GetColPosByNameDr(sColName.Trim());
                 // Return field value for ordinal
-                swork = _dReader.GetValue(iCol).ToString();
+                swork = _dtReader.GetValue(iCol).ToString();
 
                 return swork;
             }
@@ -1194,7 +1483,7 @@ namespace IbmiOdbcDataAccess
             }
         }
         /// <summary>
-        /// Return column names for current Data Table in delimited record
+        /// Return column names for current internal DataTable in delimited record.
         /// </summary>
         /// <param name="sDelim">Field delimiter. Default = ,</param>
         /// <returns>Delimited string of field names.</returns>
@@ -1207,7 +1496,7 @@ namespace IbmiOdbcDataAccess
                 _lastError = "";
 
                 // Build delimited column name list
-                foreach (DataColumn col in _dTable.Columns)
+                foreach (DataColumn col in _dtTable.Columns)
                     swork = swork + col.ColumnName + sDelim;
 
                 // Trim last delimiter at tail end of string
@@ -1223,7 +1512,7 @@ namespace IbmiOdbcDataAccess
             }
         }
         /// <summary>
-        /// Return column names for current Data Reader in delimited record
+        /// Return column names for current internal DataReader in delimited record.
         /// </summary>
         /// <param name="sDelim">Field delimiter. Default = ,</param>
         /// <returns>Delimited string of field names.</returns>
@@ -1237,8 +1526,8 @@ namespace IbmiOdbcDataAccess
                 _lastError = "";
 
                 // Build delimited column name list
-                for (iCount = 0; iCount <= _dReader.FieldCount - 1; iCount++)
-                    swork = swork + _dReader.GetName(iCount) + sDelim;
+                for (iCount = 0; iCount <= _dtReader.FieldCount - 1; iCount++)
+                    swork = swork + _dtReader.GetName(iCount) + sDelim;
 
                 // Trim last delimiter at tail end of string
                 if (swork.Length > 0)
@@ -1253,7 +1542,7 @@ namespace IbmiOdbcDataAccess
             }
         }
         /// <summary>
-        /// Return column ordinal position based on name.
+        /// Return internal DataReader column ordinal position based on name.
         /// </summary>
         /// <param name="sFieldName">Column field name</param>
         /// <returns>Column position or -2 if errors or not found</returns>
@@ -1267,9 +1556,9 @@ namespace IbmiOdbcDataAccess
                 _lastError = "";
 
                 // See if field is found and return ordinal 
-                for (iCount = 0; iCount <= _dReader.FieldCount - 1; iCount++)
+                for (iCount = 0; iCount <= _dtReader.FieldCount - 1; iCount++)
                 {
-                    if (sFieldName.ToLower().Trim() == _dReader.GetName(iCount).ToLower().Trim())
+                    if (sFieldName.ToLower().Trim() == _dtReader.GetName(iCount).ToLower().Trim())
                         return iCount;
                 }
 
@@ -1283,9 +1572,9 @@ namespace IbmiOdbcDataAccess
             }
         }
         /// <summary>
-        /// Return Data Table current row as delimited record
+        /// Return internal DataTable current row as delimited record.
         /// </summary>
-        /// <param name="iRow">Data table row</param>
+        /// <param name="iRow">DataTable row</param>
         /// <param name="sDelim">Field delimiter. Default = ,</param>
         /// <returns>Delimited string of data</returns>
         public string GetRowDelimDt(int iRow, string sDelim = ",")
@@ -1297,8 +1586,8 @@ namespace IbmiOdbcDataAccess
                 _lastError = "";
 
                 // Build delimited data from current row
-                foreach (DataColumn col in _dTable.Columns)
-                    swork = swork + _dTable.Rows[iRow][col.ColumnName] + sDelim;
+                foreach (DataColumn col in _dtTable.Columns)
+                    swork = swork + _dtTable.Rows[iRow][col.ColumnName] + sDelim;
 
                 // Trim last delimiter at tail end of string
                 if (swork.Length > 0)
@@ -1314,13 +1603,13 @@ namespace IbmiOdbcDataAccess
         }
 
         /// <summary>
-        /// Run SQL Insert, Update, Delete or Other Command With no Resultset
+        /// Run SQL Insert, Update, Delete or Other Command With no Resultset.
         /// This function takes an SQL INSERT, UPDATE or DELETE statement and 
         /// connection string and runs the SQL command to update or 
         /// delete the data we want to work with.
         /// </summary>
         /// <param name="sqlCommand">SQL action command</param>
-        /// <param name="commandTimeout">Query Timeout. 0=No Timeout,-1=Use default timeout which is usually 30 seconds</param>
+        /// <param name="commandTimeout">Query Timeout. 0=No Timeout,-1=Use default timeout which is usually 30 seconds, Otherwise set specific timeout in seconds.</param>
         /// <param name="allowSelectQueries">True-Allow SELECT queries. False-Do not allow select queries. Default=False</param>
         /// <returns>Records affected or -2 on errors.</returns>
         public int ExecuteCommandNonQuery(string sqlCommand, int commandTimeout = -1,bool allowSelectQueries=false)
@@ -1370,11 +1659,11 @@ namespace IbmiOdbcDataAccess
         }
 
         /// <summary>
-        /// Drop selected table
+        /// Drop selected table based on SCHEMALIB.TABLENAME.
         /// </summary>
         /// <param name="tableschema">Table library/schema for table to drop.</param>
         /// <param name="tablename">Table name to drop.</param>
-        /// <returns>True-Table dropped. False-Table not dropped.</returns>
+        /// <returns>True-Table dropped. False-Table not dropped or error occured.</returns>
         public bool DropTable(string tableschema, string tablename)
         {
 
@@ -1425,7 +1714,7 @@ namespace IbmiOdbcDataAccess
         }
 
         /// <summary>
-        ///  Check for IBM i table existence
+        ///  Check for IBM i table existence based on SCHEMALIB.TABLENAME.
         /// </summary>
         /// <param name="tableschema">Table library/schema to check for.</param>
         /// <param name="tablename">Table name to check for.</param>
@@ -1436,7 +1725,7 @@ namespace IbmiOdbcDataAccess
             {
                 _lastError = "";
 
-                _dTable = null;
+                _dtTable = null;
                 _iDtRows = 0;
                 _iDtColumns = 0;
 
@@ -1453,7 +1742,7 @@ namespace IbmiOdbcDataAccess
                 using (OdbcDataAdapter adapter = new OdbcDataAdapter(query, _conn))
                 {
 
-                    // Fill a Data Table using the data adapter
+                    // Fill a DataTable using the DataAdapter
                     DataTable dtWork = new DataTable();
 
                     adapter.Fill(dtWork);
@@ -1463,7 +1752,7 @@ namespace IbmiOdbcDataAccess
 
                     if (dtWork == null)
                     {
-                        _lastError = "SQL query returned no data table.";
+                        _lastError = "SQL query returned no DataTable.";
                         return false;
 
                     }
@@ -1489,13 +1778,305 @@ namespace IbmiOdbcDataAccess
         }
 
         /// <summary>
+        ///  This function gets the internal DataTable results and returns as a CSV string.
+        ///  </summary>
+        ///  <param name="sFieldSepchar">Field delimiter/separator. Default = Comma</param>
+        ///  <param name="sFieldDataDelimChar">Field data delimiter character. Default = double quotes.</param>
+        ///  <returns>CSV string from DataTable</returns>
+        public string GetQueryResultsDataTableToCsvString(string sFieldSepchar = ",", string sFieldDataDelimChar = "\"")
+        {
+            try
+            {
+                _lastError = "";
+
+                //string sHeadings = "";
+                //string sBody = "";
+                StringBuilder sCsvData = new StringBuilder();
+
+                // first write a line with the columns name
+                string sep = "";
+                System.Text.StringBuilder builder = new System.Text.StringBuilder();
+                foreach (DataColumn col in _dtTable.Columns)
+                {
+                    builder.Append(sep).Append(col.ColumnName);
+                    sep = sFieldSepchar;
+                }
+                sCsvData.AppendLine(builder.ToString());
+
+                // then write all the rows
+                foreach (DataRow row in _dtTable.Rows)
+                {
+                    sep = "";
+                    builder = new System.Text.StringBuilder();
+
+                    foreach (DataColumn col in _dtTable.Columns)
+                    {
+                        builder.Append(sep);
+                        builder.Append(sFieldDataDelimChar).Append(row[col.ColumnName]).Append(sFieldDataDelimChar);
+                        sep = sFieldSepchar;
+                    }
+                    sCsvData.AppendLine(builder.ToString());
+                }
+
+                // Return CSV output
+                return sCsvData.ToString();
+            }
+            catch (Exception ex)
+            {
+                _lastError = ex.Message;
+                return "";
+            }
+        }
+        /// <summary>
+        ///  This function gets the internal DataTable results and outputs the data as a CSV file.
+        ///  </summary>
+        ///  <param name="sOutputFile">Output CSV file</param>
+        ///  <param name="sFieldSepchar">Field delimiter/separator. Default = Comma</param>
+        ///  <param name="sFieldDataDelimChar">Field data delimiter character. Default = double quotes.</param>
+        ///  <param name="replace">Replace output file True=Replace file,False=Do not replace</param>
+        ///  <returns>True=CSV file written successfully, False=Failure writing CSV output file.</returns>
+        public bool GetQueryResultsDataTableToCsvFile(string sOutputFile, string sFieldSepchar = ",", string sFieldDataDelimChar = "\"", bool replace = false)
+        {
+            string sCsvWork;
+
+            try
+            {
+                _lastError = "";
+
+                // Delete existing file if replacing
+                if (File.Exists(sOutputFile))
+                {
+                    if (replace)
+                        File.Delete(sOutputFile);
+                    else
+                        throw new Exception("Output file " + sOutputFile + " already exists and replace not selected.");
+                }
+
+                // Get data and output
+                using (System.IO.StreamWriter writer = new System.IO.StreamWriter(sOutputFile))
+                {
+
+                    // Get CSV string
+                    sCsvWork = GetQueryResultsDataTableToCsvString(sFieldSepchar, sFieldDataDelimChar);
+
+                    // Write out CSV data
+                    writer.Write(sCsvWork);
+
+                    // Flush final output and close
+                    writer.Flush();
+                    writer.Close();
+
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                _lastError = ex.Message;
+                return false;
+            }
+        }
+
+        /// <summary>
+        ///  This function gets the internal DataTable results and returns as a XML string.
+        ///  </summary>
+        ///  <param name="sTableName">DataTable name to use. Default="Table1"</param>
+        ///  <param name="writeSchema">Write XML schema in return data. Default=False</param>
+        ///  <returns>XML string from DataTable</returns>
+        public string GetQueryResultsDataTableToXmlString(string sTableName = "Table1", bool writeSchema = false)
+        {
+            string sRtnXml = "";
+
+            try
+            {
+                _lastError = "";
+
+                // if table not set, default to Table1
+                if (sTableName.Trim() == "")
+                    sTableName = "Table1";
+
+                // Export results to XML
+                if (_dtTable == null == false)
+                {
+                    StringBuilder SB = new StringBuilder();
+                    System.IO.StringWriter SW = new System.IO.StringWriter(SB);
+                    _dtTable.TableName = sTableName;
+                    // Write XMl with or without schema info
+                    if (writeSchema)
+                        _dtTable.WriteXml(SW, System.Data.XmlWriteMode.WriteSchema);
+                    else
+                        _dtTable.WriteXml(SW);
+                    sRtnXml = SW.ToString();
+                    SW.Close();
+                    return sRtnXml;
+                }
+                else
+                    throw new Exception("No data available. Error: " + GetLastError());
+            }
+            catch (Exception ex)
+            {
+                _lastError = ex.Message;
+                return "";
+            }
+        }
+        /// <summary>
+        ///  This function gets the internal DataTable results and outputs the data as a XML file.
+        ///  </summary>
+        ///  <param name="sOutputFile">Output XML result file</param>
+        ///  <param name="sTableName">DataTable name to use. Default = "Table1"</param>
+        ///  <param name="writeSchema">Write XML schema in return data</param>
+        ///  <param name="replace">Replace output file True=Replace file,False=Do not replace</param>
+        ///  <returns>True=XML file written successfully, False=Failure writing XML output file.</returns>
+        public bool GetQueryResultsDataTableToXmlFile(string sOutputFile, string sTableName = "Table1", bool writeSchema = false, bool replace = false)
+        {
+            string sXmlWork;
+
+            try
+            {
+                _lastError = "";
+
+                // Delete existing file if replacing
+                if (File.Exists(sOutputFile))
+                {
+                    if (replace)
+                        File.Delete(sOutputFile);
+                    else
+                        throw new Exception("Output file " + sOutputFile + " already exists and replace not selected.");
+                }
+
+                // Get data and output 
+                using (System.IO.StreamWriter writer = new System.IO.StreamWriter(sOutputFile))
+                {
+
+                    // Get XML string
+                    sXmlWork = GetQueryResultsDataTableToXmlString(sTableName, writeSchema);
+
+                    // Write out CSV data
+                    writer.Write(sXmlWork);
+
+                    // Flush final output and close
+                    writer.Flush();
+                    writer.Close();
+
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                _lastError = ex.Message;
+                return false;
+            }
+        }
+
+        /// <summary>
+        ///  This function gets the internal DataTable results and returns as a JSON string.
+        ///  </summary>
+        /// <param name="debugInfo">Write debug info in to JSON result packet. Default = False</param>
+        ///  <returns>JSON string from DataTable</returns>
+        public string GetQueryResultsDataTableToJsonString(bool debugInfo = false)
+        {
+
+            // TODO - Use Newtonsoft JSON to convert to JSON
+
+            string sJsonData = "";
+            JsonHelper oJsonHelper = new JsonHelper();
+
+            try
+            {
+                _lastError = "";
+
+                // If DataTable is blank, bail
+                if (_dtTable == null)
+                    throw new Exception("DataTable is Nothing. No data available.");
+
+                // Convert DataTable to JSON
+                sJsonData = oJsonHelper.DataTableToJsonWithStringBuilder(_dtTable, debugInfo);
+
+                // Return JSON output
+                return sJsonData.ToString();
+            }
+            catch (Exception ex)
+            {
+                _lastError = ex.Message;
+                return "";
+            }
+        }
+
+        /// <summary>
+        ///  This function gets the internal DataTable results and outputs the data as a JSON file.
+        ///  </summary>
+        ///  <param name="sOutputFile">Output JSON file</param>
+        ///  <param name="replace">Replace output file True=Replace file,False=Do not replace</param>
+        ///  <returns>True=JSON file written successfully, False=Failure writing JSON output file.</returns>
+        public bool GetQueryResultsDataTableToJsonFile(string sOutputFile, bool replace = false)
+        {
+            string sJsonWork;
+
+            try
+            {
+                _lastError = "";
+
+                // Delete existing file if replacing
+                if (File.Exists(sOutputFile))
+                {
+                    if (replace)
+                        File.Delete(sOutputFile);
+                    else
+                        throw new Exception("Output file " + sOutputFile + " already exists and replace not selected.");
+                }
+
+                // Get data and output 
+                using (System.IO.StreamWriter writer = new System.IO.StreamWriter(sOutputFile))
+                {
+
+                    // Get JSON string
+                    sJsonWork = GetQueryResultsDataTableToJsonString();
+
+                    // Write out JSON data
+                    writer.Write(sJsonWork);
+
+                    // Flush final output and close
+                    writer.Flush();
+                    writer.Close();
+
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                _lastError = ex.Message;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Convert DataReader to DataTable
+        /// </summary>
+        /// <param name="_dataReader">DataReader object to convert</param>
+        /// <returns>DataTable of results or null on error</returns>
+        public DataTable ConvertDataReaderToDataTable(DbDataReader _dataReader)
+        {
+
+            try
+            {
+                _lastError = "";
+                DataTable _dataTable = new DataTable();
+                _dataTable.Load(_dataReader);
+                return _dataTable;
+            } catch (Exception ex)
+            {
+              _lastError= ex.Message;
+              return null;
+            }
+
+        }
+
+        /// <summary>
         /// Execute CL command via SQL call to QSYS.QCMDEXC
         /// </summary>
         /// <param name="clCommand">CL command line</param>
         /// <returns>0=success,-2=errors</returns>
         public int ExecClCommandQsys(string clCommand)
         {
-            OdbcCommand oCmd = null;
          
             String strClCmd;
 
@@ -1504,26 +2085,29 @@ namespace IbmiOdbcDataAccess
 
                 _lastError = "";
 
+                // Check for active connection
+                if (IsConnected() == false)
+                    throw new Exception("Database connection not open.");
+
                 // Build CL SQL command
                 strClCmd = "CALL QSYS.QCMDEXC('" + clCommand.Trim() + "', " + (clCommand.Trim().Length).ToString("0000000000.00000").Replace(",", ".") + ")";
 
                 // Create command object to run CL command
-                oCmd = new OdbcCommand(strClCmd, _conn);
+                using (OdbcCommand _cmdcl = new OdbcCommand(strClCmd, _conn))
+                {
 
-                // Execute the command. 
-                // 0 is returned for success.
-                int i = oCmd.ExecuteNonQuery();
-            
-                return i;
+                    // Execute the command. 
+                    // 0 is returned for success.
+                    int i = _cmdcl.ExecuteNonQuery();
+
+                    return i;
+                }
+
             }
             catch (Exception ex)
             {
                 _lastError=ex.Message; 
                 return -2;
-            }
-            finally
-            {
-                oCmd.Dispose();
             }
 
         }
@@ -1535,7 +2119,6 @@ namespace IbmiOdbcDataAccess
         /// <returns>0=success,-2=errors</returns>
         public int ExecClCommandQsys2(string clCommand)
         {
-            OdbcCommand oCmd = null;
 
             String strClCmd;
 
@@ -1544,26 +2127,29 @@ namespace IbmiOdbcDataAccess
 
                 _lastError = "";
 
+                // Check for active connection
+                if (IsConnected() == false)
+                    throw new Exception("Database connection not open.");
+
                 // Build CL SQL command
                 strClCmd = "CALL QSYS2.QCMDEXC('" + clCommand.Trim() + "', " + (clCommand.Trim().Length).ToString("0000000000.00000").Replace(",", ".") + ")";
 
                 // Create command object to run CL command
-                oCmd = new OdbcCommand(strClCmd, _conn);
+                using (OdbcCommand _cmdcl = new OdbcCommand(strClCmd, _conn))
+                {
 
-                // Execute the command. 
-                // 0 is returned for success.
-                int i = oCmd.ExecuteNonQuery();
+                    // Execute the command. 
+                    // 0 is returned for success.
+                    int i = _cmdcl.ExecuteNonQuery();
 
-                return i;
+                    return i;
+                }
+
             }
             catch (Exception ex)
             {
                 _lastError = ex.Message;
                 return -2;
-            }
-            finally
-            {
-                oCmd.Dispose();
             }
 
         }

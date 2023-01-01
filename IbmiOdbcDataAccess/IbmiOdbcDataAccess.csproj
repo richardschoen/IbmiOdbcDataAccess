@@ -2,13 +2,26 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <Title>IBM i Access ODBC Data Access</Title>
-    <Description>IBM i Access ODBC Data Access</Description>
-    <Copyright>2022 MobiGogo LLC</Copyright>
-    <Product>IBM i Access ODBC Data Access</Product>
+    <Title>IBM i ODBC Data Access</Title>
+    <Description>IBM i ODBC Data Access</Description>
+    <Copyright>Copyright © MobiGoGo, LLC 2022-203</Copyright>
+    <Product>IBM i ODBC Data Access</Product>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <PackageProjectUrl>https://github.com/richardschoen/IbmiOdbcDataAccess</PackageProjectUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/richardschoen/IbmiOdbcDataAccess</RepositoryUrl>
+    <PackageTags>AS400;IBMi;ODBC;Data;Access;CL;RPG;Stored Procedures;</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>
+    <None Include="..\README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.2" />
     <PackageReference Include="System.Data.Odbc" Version="7.0.0" />
   </ItemGroup>
 
