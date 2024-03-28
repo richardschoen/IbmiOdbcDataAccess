@@ -1098,12 +1098,9 @@ namespace IbmiOdbcDataAccess
         /// <param name="replace">True=replace output file is it exists. False=Dont replace. Default=False</param>
         /// <param name="queryTimeout">Query Timeout. 0=No Timeout,-1=Use default timeout which is usually 30 seconds</param>
         /// <param name="tableName">DataTable name to use. Default="Table1"</param>
-<<<<<<< HEAD
         /// <param name="exportAsJsonObject">Export as a JSON object. False-Export as array, True-Export as object. Default=False</param>
         /// <param name="jsonObjectName">JSON object name if exporting as an object. Default='records'</param>
         /// <param name="formatJson">Format JSON. True-Format,False-No Format</param>
-=======
->>>>>>> 8af750e3e8a5035b3d8aca20d92da0a80d311b70
         /// <returns>True=Success,False=Errors</returns>
         public bool QueryRecordsToJsonFileDt(string sqlselect, string outputfile, bool replace = false, int queryTimeout = -1,string tableName="Table1", bool exportAsJsonObject = false, string jsonObjectName = "records", bool formatJson = true)
         {
@@ -1136,12 +1133,9 @@ namespace IbmiOdbcDataAccess
         /// <param name="sqlselect">SQL select</param>
         /// <param name="queryTimeout">Query Timeout. 0=No Timeout,-1=Use default timeout which is usually 30 seconds</param>
         /// <param name="tableName">DataTable name to use. Default="Table1"</param>
-<<<<<<< HEAD
         /// <param name="exportAsJsonObject">Export as a JSON object. False-Export as array, True-Export as object. Default=False</param>
         /// <param name="jsonObjectName">JSON object name if exporting as an object. Default='records'</param>
         /// <param name="formatJson">Format JSON. True-Format,False-No Format</param>
-=======
->>>>>>> 8af750e3e8a5035b3d8aca20d92da0a80d311b70
         /// <returns>Query result as JSON string or blanks</returns>
         public string QueryRecordsToJsonStringDt(string sqlselect,int queryTimeout = -1, string tableName = "Table1",bool exportAsJsonObject = false, string jsonObjectName = "records", bool formatJson = true)
         {
@@ -1178,12 +1172,9 @@ namespace IbmiOdbcDataAccess
         /// <param name="replace">True=replace output file is it exists. False=Dont replace. Default=False</param>
         /// <param name="queryTimeout">Query Timeout. 0=No Timeout,-1=Use default timeout which is usually 30 seconds</param>
         /// <param name="tableName">DataTable name to use. Default="Table1"</param>
-<<<<<<< HEAD
         /// <param name="exportAsJsonObject">Export as a JSON object. False-Export as array, True-Export as object. Default=False</param>
         /// <param name="jsonObjectName">JSON object name if exporting as an object. Default='records'</param>
         /// <param name="formatJson">Format JSON. True-Format,False-No Format</param>
-=======
->>>>>>> 8af750e3e8a5035b3d8aca20d92da0a80d311b70
         /// <returns>True=Success,False=Errors</returns>
         public bool QueryRecordsToJsonFileDr(string sqlselect, string outputfile, bool replace = false, int queryTimeout = -1,string tableName="Table1", bool exportAsJsonObject = false, string jsonObjectName = "records", bool formatJson = true)
         {
