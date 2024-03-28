@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -315,5 +315,9 @@ namespace IbmiOdbcDataAccess
         }
 
     }
+<<<<<<< HEAD
 
 }
+=======
+}
+>>>>>>> 8af750e3e8a5035b3d8aca20d92da0a80d311b70
