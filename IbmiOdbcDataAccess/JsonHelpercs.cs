@@ -14,14 +14,13 @@ using System.Web;
 using System.Runtime.Serialization.Json;
 using System.Text.RegularExpressions;
 using System.Data;
-//using Newtonsoft.Json;
-// Imports System.Web.script.Serialization
+using Newtonsoft.Json;
 
 /// <summary>
-
 /// JSON Serialization and Deserialization Assistant Class
 /// Source from: https://gist.github.com/monk8800/3760559
 /// Note: Normally we would use the Newtonsoft JSON API, but this class removes any extra dependencies.
+/// Latest version: 2/5/2024
 /// </summary>
 
 namespace IbmiOdbcDataAccess
@@ -102,51 +101,70 @@ namespace IbmiOdbcDataAccess
         /// <summary>
         /// Convert DataTable object to Json String
         /// Source: 'https://stackoverflow.com/questions/21648064/vb-net-datatable-serialize-to-json
+        /// Now using Newtonsoft - 2/5/2024
         /// </summary>
-        /// <param name="dtWork">DataTable object</param>
+        /// <param name="table">DataTable object</param>
         /// <returns>Serialized JSON DataTable as string</returns>
-        public string ConvertDataTableToJson(DataTable dtWork)
+        public string ConvertDataTableToJson(DataTable table)
         {
+
+            string JSONString = string.Empty;
+
             try
             {
+
                 _lasterror = "";
 
-                // TODO - This code depracated until MS ports: System.Web.script.Serialization to .Net Core
+                if (table == null)
+                {
+                    return string.Empty;
+                }
 
-                // 'Check DataTable to make sure it has data
-                // If dtWork Is Nothing Then
-                // Throw New Exception("DataTable is Nothing. No data available to serialize.")
-                // End If
-
-                // 'Serialize to JSON and return 
-                // Return New JavaScriptSerializer().Serialize(From dr As DataRow In dtWork.Rows Select dtWork.Columns.Cast(Of DataColumn)().ToDictionary(Function(col) col.ColumnName, Function(col) dr(col)))
-
-                return "";
+                JSONString = JsonConvert.SerializeObject(table);
+                return JSONString;
             }
             catch (Exception ex)
             {
                 _lasterror = ex.Message;
                 return "";
             }
+
         }
+
         /// <summary>
         /// Serialize DataTable with Newtonsoft.JSON
         /// Sample from:
         /// http://www.c-sharpcorner.com/UploadFile/9bff34/3-ways-to-convert-datatable-to-json-string-in-Asp-Net-C-Sharp/
         /// </summary>
         /// <param name="table">DataTable</param>
+        /// <param name="formatJson">Format JSON. True-Format,False-No Format</param>
         /// <returns>JSON string</returns>
-        public string DataTableToJSONWithJSONNet(DataTable table)
+        public string ConvertDataTableToJsonWithNewtonSoft(DataTable table, bool formatJson = true)
         {
             string JSONString = string.Empty;
+
             try
             {
-                // TODO - Removed Newtonsoft dependency. If Newtensoft added, you can enable this function again
-                return "";
-            }
 
-            // JSONString = JsonConvert.SerializeObject(table)
-            // Return JSONString
+                _lasterror = "";
+
+                if (table == null)
+                {
+                    return string.Empty;
+                }
+
+                // Serialize Data Table to formatted JSON
+                if (formatJson)
+                {
+                    JSONString = JsonConvert.SerializeObject(table, Formatting.Indented);
+                }
+                else // Serialize Data Table to unformatted JSON
+                {
+                    JSONString = JsonConvert.SerializeObject(table, Formatting.None);
+                }
+
+                return JSONString;
+            }
             catch (Exception ex)
             {
                 _lasterror = ex.Message;
@@ -156,6 +174,7 @@ namespace IbmiOdbcDataAccess
 
         /// <summary>
         /// Convert DataTable to json string using StringBuilder
+        /// https://stackoverflow.com/questions/17398019/convert-datatable-to-json-in-c-sharp
         /// </summary>
         /// <param name="table">DataTable input</param>
         /// <param name="debugINfo">True-Write debug info in response JSON. No debug info in error response</param>
@@ -191,15 +210,110 @@ namespace IbmiOdbcDataAccess
                     return jsonString.ToString();
                 }
                 else
-                    return "[{\"noresults\":\"No results found\"}]";
+                    return "[{\"message\":\"No json results returned\"}]";
             }
             catch (Exception ex)
             {
                 if (debugInfo)
-                    return "[{\"noresults\":\"" + ex.Message + "\"}]";
+                    return "[{\"message\":\" Error converting DataTable results to json. Error: " + ex.Message + "\"}]";
                 else
-                    return "[{\"noresults\":\"Exception occurred\"}]";
+                    return "[{\"message\":\"Exception occurred returning json results\"}]";
             }
         }
+
+        /// <summary>
+        /// Serialize a DataTable Using System.text.Json
+        /// https://code-maze.com/convert-datatable-json-csharp/
+        /// </summary>
+        /// <param name="dataTable">DataTable</param>
+        /// <returns>Converted JSON as string</returns>
+        public string DataTableSystemTextJson(DataTable dataTable)
+        {
+            if (dataTable == null)
+            {
+                return string.Empty;
+            }
+            var data = dataTable.Rows.OfType<DataRow>()
+                        .Select(row => dataTable.Columns.OfType<DataColumn>()
+                            .ToDictionary(col => col.ColumnName, c => row[c]));
+            return System.Text.Json.JsonSerializer.Serialize(data);
+        }
+
+        /// <summary>
+        /// Serialize a DataTable Using Newtonsoft.Json
+        /// https://code-maze.com/convert-datatable-json-csharp/
+        /// </summary>
+        /// <param name="dataTable">DataTable</param>
+        /// <returns>Converted JSON as string</returns>
+        public string DataTableNewtonsoftJsonNet(DataTable dataTable)
+        {
+            if (dataTable == null)
+            {
+                return string.Empty;
+            }
+            return Newtonsoft.Json.JsonConvert.SerializeObject(dataTable);
+        }
+
+
+        /// <summary>
+        /// Serialize a DataTable by Constructing a Json String
+        /// https://code-maze.com/convert-datatable-json-csharp/
+        /// </summary>
+        /// <param name="dataTable">DataTable</param>
+        /// <returns>Converted JSON as string</returns>
+        public string DataTableStringBuilder(DataTable dataTable)
+        {
+            if (dataTable == null)
+            {
+                return string.Empty;
+            }
+
+            var jsonStringBuilder = new StringBuilder();
+            if (dataTable.Rows.Count > 0)
+            {
+                jsonStringBuilder.Append("[");
+                for (int i = 0; i < dataTable.Rows.Count; i++)
+                {
+                    jsonStringBuilder.Append("{");
+                    for (int j = 0; j < dataTable.Columns.Count; j++)
+                        jsonStringBuilder.AppendFormat("\"{0}\":\"{1}\"{2}",
+                                dataTable.Columns[j].ColumnName.ToString(),
+                                dataTable.Rows[i][j].ToString(),
+                                j < dataTable.Columns.Count - 1 ? "," : string.Empty);
+
+                    jsonStringBuilder.Append(i == dataTable.Rows.Count - 1 ? "}" : "},");
+                }
+                jsonStringBuilder.Append("]");
+            }
+
+            return jsonStringBuilder.ToString();
+        }
+
+        /// <summary>
+        /// Serialize a DataTable to Json using Linq
+        /// https://code-maze.com/convert-datatable-json-csharp/
+        /// </summary>
+        /// <param name="dataTable">DataTable</param>
+        /// <returns>Converted JSON as string</returns>
+        public string DataTableLinq(DataTable dataTable)
+        {
+            if (dataTable == null)
+            {
+                return string.Empty;
+            }
+
+            return "["
+                    + string.Join(",", dataTable.Rows.OfType<DataRow>()
+                    .Select(row =>
+                        "{"
+                        + string.Join(",", dataTable.Columns.OfType<DataColumn>()
+                            .Select(col => string.Format("\"{0}\":\"{1}\"",
+                                                col.ColumnName,
+                                                row[col].ToString())))
+                        + "}"))
+                    + "]";
+        }
+
     }
+
 }

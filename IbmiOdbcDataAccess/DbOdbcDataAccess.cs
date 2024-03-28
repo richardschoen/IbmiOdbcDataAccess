@@ -2,8 +2,12 @@ using System;
 using System.Text;
 using System.Data;
 using System.IO;
+using System.Reflection;
 using System.Data.Odbc;
 using System.Data.Common;
+using System.Collections;
+using System.Collections.Generic;
+
 
 
 namespace IbmiOdbcDataAccess
@@ -17,47 +21,62 @@ namespace IbmiOdbcDataAccess
     /// <remarks></remarks>
     public class DbOdbcDataAccess
     {
-        // Made these class variables public so class
-        // that is using this as a base class can use these variables too
-        private string _lastError;
-        private string _connectionString = "";
-        private DataTable _dtTable;
-        private int _iDtRows;
-        private int _iDtColumns;
-        private OdbcDataReader _dtReader;
-        private OdbcConnection _conn;
-        private OdbcCommand _cmd;
-        private bool _bConnectionOpen = false;
-        private int _iLastExportCount;
-        private string _lastSql;
-        private string _ibmiaccessconntemplate="Driver={IBM i Access ODBC Driver};System=@@SYSTEM;Uid=@@USERID;Pwd=@@PASS;CommitMode=0;EXTCOLINFO=1";
+        // Made these class variables public so class.
+        // that is using this as a base class can use these variables too.
+        protected string _lastError;
+        protected string _connectionString = "";
+        protected DataTable _dtTable;
+        protected DataSet _dtDataSet;
+        protected int _iDtRows;
+        protected int _iDtColumns;
+        protected OdbcDataReader _dtReader;
+        protected OdbcConnection _conn;
+        protected OdbcCommand _cmd;
+        protected bool _connectionOpen = false;
+        protected int _iLastExportCount;
+        protected string _lastSql;
+        protected string _ibmiaccessconntemplate="Driver={IBM i Access ODBC Driver};System=@@SYSTEM;Uid=@@USERID;Pwd=@@PASS;CommitMode=0;EXTCOLINFO=1";
 
+
+        #region Odbc Database Methods
 
         /// <summary>
-        /// Get internal OdbcConnection object.
+        /// Get internal OdbcConnection object so it can be used.
         /// </summary>
         /// <returns>Return OdbcConnection object</returns>
-        public OdbcConnection GetOdbcConnection()
+        public OdbcConnection GetOdbcConnectionInternal()
         {
             return _conn;
         }
 
         /// <summary>
-        /// Get internal DataReader object.
+        /// Get internal DataReader object so it can be used.
         /// </summary>
         /// <returns>Return DataReader object</returns>
-        public OdbcDataReader GetInternalDataReader()
+        public OdbcDataReader GetOdbcDataReaderInternal()
         {
             return _dtReader;
         }
 
         /// <summary>
-        /// Get internal DataTable object.
+        /// Get Internal DataTable object reference so it can be used.
+        /// Must be populated using ExecuteQueryDataTableInternal.
         /// </summary>
-        /// <returns>Return DataTable object</returns>
-        public DataTable GetInternalDataTable()
+        /// <returns>DataTable object or null on errors</returns>
+        public DataTable GetDataTableInternal()
         {
-            return _dtTable;
+            try
+            {
+                _lastError = "";
+
+                return _dtTable;
+            }
+            catch (Exception ex)
+            {
+                _lastError = ex.Message;
+                // If errors occur, return null.
+                return null;
+            }
         }
 
         /// <summary>
@@ -79,13 +98,14 @@ namespace IbmiOdbcDataAccess
         }
 
         /// <summary>
-        /// Set IBM i access connection string default template if you want to override the default.
+        /// Set IBM i access connection string default template if you want to override the default
+        /// connection string template value.
         /// Keywords that can be passed as part of the template:
         /// @@SYSTEM - IBMi system host name or IP address
         /// @@USER - IBMi user id
         /// @@PASS - IBMi password
         /// You don't need to use this method unless you want to use the OpenConnection method and pass just
-        /// the system/host, user id and password instead of the entire string and want to overrider the default 
+        /// the system/host, user id and password instead of the entire string and also want to override the default 
         /// IBM i connection string.
         /// Default connection string template which is pre-set:
         /// "Driver={IBM i Access ODBC Driver};System=@@SYSTEM;Uid=@@USERID;Pwd=@@PASS;CommitMode=0;EXTCOLINFO=1"
@@ -101,6 +121,24 @@ namespace IbmiOdbcDataAccess
             catch (Exception ex)
             {
                 _lastError = ex.Message;
+            }
+        }
+
+        /// <summary>
+        /// Get IBM i access connection string default template if you want to review the 
+        /// connection string template value.
+        /// </summary>
+        public string GetIbmiConnectionStringTemplate()
+        {
+            try
+            {
+                _lastError = "";
+                return _ibmiaccessconntemplate;
+            }
+            catch (Exception ex)
+            {
+                _lastError = ex.Message;
+                return "";
             }
         }
 
@@ -122,6 +160,8 @@ namespace IbmiOdbcDataAccess
             }
         }
 
+
+
         /// <summary>
         /// Open database connection without passing explicit connection string.
         /// If no connection string passed, SetConnectionString must be called beforehand.
@@ -140,12 +180,15 @@ namespace IbmiOdbcDataAccess
         /// <returns>True=Connection is open. False=Connection is not open.</returns>
         public bool IsConnected()
         {
-            return _bConnectionOpen;
+            return _connectionOpen;
         }
 
         /// <summary>
-        /// Open database connection with set connection string.
+        /// Open database connection with passed connection string.
         /// </summary>
+        /// <param name="strConnString">ODBC connection string value or blanks to use internally 
+        ///set connection string.
+        /// </param>
         /// <returns>True=Connection opened successfully. False=Error occurred opening connection.</returns>
         public bool OpenConnection(string strConnString)
         {
@@ -172,7 +215,8 @@ namespace IbmiOdbcDataAccess
                 // Now open the connection
                 _conn.Open();
 
-                _bConnectionOpen = true;
+                // Set connection opened flag
+                _connectionOpen = true;
 
                 _lastError = "Connection opened successfully.";
 
@@ -181,17 +225,20 @@ namespace IbmiOdbcDataAccess
             catch (Exception ex)
             {
                 _lastError = ex.Message;
-                _bConnectionOpen = false;
+                _connectionOpen = false;
                 return false;
             }
         }
 
         /// <summary>
-        /// Open database connection with system name/ip, user id, password using 
+        /// Open database connection with IBM i system name/ip, user id, password using 
         /// IBM i Access connection string template instead of passing entire connection string.
         /// You can override the default IBM i connection string template via the SetIbmiConnectionStringTemplate()
         /// method. 
         /// </summary>
+        /// <param name="systemHost">IBMi host name or IP address</param>
+        /// <param name="userId">IBM i user ID</param>
+        /// <param name="password">IBM i password</param>
         /// <returns>True=Connection opened successfully. False=Error occurred opening connection.</returns>
         public bool OpenConnection(string systemHost,string userId, string password)
         {
@@ -229,7 +276,7 @@ namespace IbmiOdbcDataAccess
             catch (Exception ex)
             {
                 _lastError = ex.Message;
-                _bConnectionOpen = false;
+                _connectionOpen = false;
                 return false;
             }
         }
@@ -252,14 +299,14 @@ namespace IbmiOdbcDataAccess
 
                 _lastError = "Connection closed successfully.";
 
-                _bConnectionOpen = false;
+                _connectionOpen = false;
 
                 return true;
             }
             catch (Exception ex)
             {
                 _lastError = ex.Message;
-                _bConnectionOpen = false;
+                _connectionOpen = false;
                 return false;
             }
         }
@@ -271,7 +318,7 @@ namespace IbmiOdbcDataAccess
         /// <param name="sqlselect">SQL query</param>
         /// <param name="iStartRecord">Starting record. Default=0. If start and max are 0, all records will be exported to DataTable.</param>
         /// <param name="iMaxRecords">Ending record. Default = 0. If start and max are 0, all records will be exported to DataTable.</param>
-        /// <param name="tablename">DataTable name</param>
+        /// <param name="tablename">DataTable name. Default="Table1"</param>
         /// <param name="queryTimeout">Query Timeout. 0=No Timeout,-1=Use default timeout which is usually 30 seconds</param>
         /// <returns>DataTable or null</returns>
         public DataTable ExecuteQueryToDataTable(string sqlselect, int iStartRecord = 0, int iMaxRecords = 0, string tableName = "Table1", int queryTimeout = -1)
@@ -340,6 +387,164 @@ namespace IbmiOdbcDataAccess
         }
 
         /// <summary>
+        /// Run SQL query and return as DataTable object.
+        /// This function takes an SQL SELECT statement and connection string and 
+        /// runs the query to get the data we want to work with.
+        /// </summary>
+        /// <param name="sqlselect">SQL query</param>
+        /// <param name="iStartRecord">Starting record. Default=0. If start and max are 0, all records will be exported to DataTable.</param>
+        /// <param name="iMaxRecords">Ending record. Default = 0. If start and max are 0, all records will be exported to DataTable.</param>
+        /// <param name="tablename">DataTable name. Default="Table1"</param>
+        /// <param name="queryTimeout">Query Timeout. 0=No Timeout,-1=Use default timeout which is usually 30 seconds</param>
+        /// <returns>DataTable or null</returns>
+        public List<T> ExecuteQueryToList<T>(string sqlselect, int iStartRecord = 0, int iMaxRecords = 0, string tableName = "Table1", int queryTimeout = -1)
+        {
+            try
+            {
+                _lastError = "";
+                _dtTable = null;
+                _iDtRows = 0;
+                _iDtColumns = 0;
+
+                // Check for active connection
+                if (IsConnected() == false)
+                    throw new Exception("Database connection not open.");
+
+                // Bail if not a SELECT
+                if (!sqlselect.ToUpper().StartsWith("SELECT"))
+                    throw new Exception("Only SELECT queries can be run.");
+
+                // Save last SQL property
+                _lastSql = sqlselect;
+
+                // Create temporary SQL Server DataAdapter using SQL Server connection string and SQL statement
+                using (OdbcDataAdapter adapter = new OdbcDataAdapter(sqlselect, _conn))
+                {
+
+                    // Set query timeout if specified. 0=no timeout
+                    if (queryTimeout >= 0)
+                    {
+                        adapter.SelectCommand.CommandTimeout = queryTimeout;
+                    }
+
+                    // Fill a DataTable using the DataAdapter
+                    DataTable dtWork = new DataTable();
+
+                    // If limits passed, limit records returned
+                    if (iStartRecord == 0 & iMaxRecords == 0)
+                    {
+                        adapter.Fill(dtWork);
+                    }
+                    else
+                    {
+                        adapter.Fill(iStartRecord, iMaxRecords, dtWork);
+                    }
+
+                    // Dispose of DataAdapter when we're done
+                    adapter.Dispose();
+
+                    // Return the recordset to class level DataTable so we can access indefinitely
+                    _dtTable = dtWork;
+                    _dtTable.TableName = tableName;
+
+                    // Set row/col info
+                    _iDtRows = _dtTable.Rows.Count;
+                    _iDtColumns = _dtTable.Columns.Count;
+
+                    return ConvertDataTableToTypedList<T>(_dtTable); // Return DataTable convertted to a list
+                }
+            }
+            catch (Exception ex)
+            {
+                _lastError = ex.Message;
+                // If errors occur, return nothing.
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Run SQL query and return as DataTable in a DataSet object.
+        /// This function takes an SQL SELECT statement and connection string and 
+        /// runs the query to get the data we want to work with.
+        /// </summary>
+        /// <param name="sqlselect">SQL query</param>
+        /// <param name="iStartRecord">Starting record. Default=0. If start and max are 0, all records will be exported to DataTable.</param>
+        /// <param name="iMaxRecords">Ending record. Default = 0. If start and max are 0, all records will be exported to DataTable.</param>
+        /// <param name="tableName">DataTable name. Default="Table1"</param>
+        /// <param name="datasetName">DataSet name. Default="DataSet1"</param>
+        /// <param name="queryTimeout">Query Timeout. 0=No Timeout,-1=Use default timeout which is usually 30 seconds</param>
+        /// <returns>DataSet containing our DataTable or null</returns>
+        public DataSet ExecuteQueryToDataSet(string sqlselect, int iStartRecord = 0, int iMaxRecords = 0, string tableName = "Table1",string datasetName="DataSet1", int queryTimeout = -1)
+        {
+            try
+            {
+                _lastError = "";
+                DataTable _dtWorkTable = null;
+                _iDtRows = 0;
+                _iDtColumns = 0;
+
+                // Check for active connection
+                if (IsConnected() == false)
+                    throw new Exception("Database connection not open.");
+
+                // Bail if not a SELECT
+                if (!sqlselect.ToUpper().StartsWith("SELECT"))
+                    throw new Exception("Only SELECT queries can be run.");
+
+                // Save last SQL property
+                _lastSql = sqlselect;
+
+                // Create temporary SQL Server DataAdapter using SQL Server connection string and SQL statement
+                using (OdbcDataAdapter adapter = new OdbcDataAdapter(sqlselect, _conn))
+                {
+
+                    // Set query timeout if specified. 0=no timeout
+                    if (queryTimeout >= 0)
+                    {
+                        adapter.SelectCommand.CommandTimeout = queryTimeout;
+                    }
+
+                    // Fill a DataTable using the DataAdapter
+                    DataTable dtWork = new DataTable();
+
+                    // If limits passed, limit records returned
+                    if (iStartRecord == 0 & iMaxRecords == 0)
+                    {
+                        adapter.Fill(dtWork);
+                    }
+                    else
+                    {
+                        adapter.Fill(iStartRecord, iMaxRecords, dtWork);
+                    }
+
+                    // Dispose of DataAdapter when we're done
+                    adapter.Dispose();
+
+                    // Return the recordset to class level DataTable so we can access indefinitely
+                    _dtWorkTable = dtWork;
+                    _dtWorkTable.TableName = tableName;
+
+                    // Set row/col info
+                    _iDtRows = _dtWorkTable.Rows.Count;
+                    _iDtColumns = _dtWorkTable.Columns.Count;
+
+                    // Add DataTable to new DataSet object
+                    _dtDataSet = new DataSet();
+                    _dtDataSet.Tables.Add(_dtWorkTable);
+                    _dtDataSet.DataSetName = datasetName;
+
+                    return _dtDataSet; // Return DataSet
+                }
+            }
+            catch (Exception ex)
+            {
+                _lastError = ex.Message;
+                // If errors occur, return nothing.
+                return null;
+            }
+        }
+
+        /// <summary>
         /// Run SQL query and return as internal DataTable.
         /// This function takes an SQL SELECT statement and connection string and 
         /// runs the query to get the data we want to work with.
@@ -347,7 +552,7 @@ namespace IbmiOdbcDataAccess
         /// <param name="sqlselect">SQL query</param>
         /// <param name="iStartRecord">Starting record. Default=0. If start and max are 0, all records will be exported to DataTable.</param>
         /// <param name="iMaxRecords">Ending record. Default = 0. If start and max are 0, all records will be exported to DataTable.</param>
-        /// <param name="tablename">DataTable name</param>
+        /// <param name="tablename">DataTable name. Default="Table1"</param>
         /// <param name="queryTimeout">Query Timeout. 0=No Timeout,-1=Use default timeout which is usually 30 seconds</param>
         /// <returns>Boolean for query completion</returns>
         public bool ExecuteQueryToDataTableInternal(string sqlselect, int iStartRecord = 0, int iMaxRecords = 0, string tableName = "Table1", int queryTimeout = -1)
@@ -538,7 +743,7 @@ namespace IbmiOdbcDataAccess
 
             //string sql = "";
             string sWorkSpace = "";
-            bool bOutputFileExists = false;
+            bool outputFileExists = false;
             string dblqt = "";
 
             try
@@ -569,11 +774,11 @@ namespace IbmiOdbcDataAccess
                 // If file exists and replace not selected bail
                 if (System.IO.File.Exists(outputFile))
                 {
-                    bOutputFileExists = true;
+                    outputFileExists = true;
                     if (replace == true)
                     {
                         System.IO.File.Delete(outputFile);
-                        bOutputFileExists = false;
+                        outputFileExists = false;
                     }
                     else
                     {
@@ -584,7 +789,7 @@ namespace IbmiOdbcDataAccess
                 int count = 0;
 
                 // Output headings only if enabled and output file not found already
-                if (outputHeadings & bOutputFileExists == false)
+                if (outputHeadings & outputFileExists == false)
                 {
 
                     // Extract all the local filed names
@@ -668,7 +873,7 @@ namespace IbmiOdbcDataAccess
             //string sql = "";
             string sWorkSpace = "";
             int rowcount = 0;
-            bool bOutputFileExists = false;
+            bool outputFileExists = false;
 
             try
             {
@@ -692,11 +897,11 @@ namespace IbmiOdbcDataAccess
                 // If file exists and replace not selected bail
                 if (System.IO.File.Exists(outputFile))
                 {
-                    bOutputFileExists = true;
+                    outputFileExists = true;
                     if (replace == true)
                     {
                         System.IO.File.Delete(outputFile);
-                        bOutputFileExists = false;
+                        outputFileExists = false;
                     }
                     else
                     {
@@ -707,7 +912,7 @@ namespace IbmiOdbcDataAccess
                 int count = 0;
 
                 // Output headings only if enabled and output file not found already
-                if (outputHeadings & bOutputFileExists == false)
+                if (outputHeadings & outputFileExists == false)
                 {
 
                     // Extract all the local field names
@@ -892,9 +1097,12 @@ namespace IbmiOdbcDataAccess
         /// <param name="outputfile">Output file</param>
         /// <param name="replace">True=replace output file is it exists. False=Dont replace. Default=False</param>
         /// <param name="queryTimeout">Query Timeout. 0=No Timeout,-1=Use default timeout which is usually 30 seconds</param>
-        /// <param name="tableName">DataTable name to use. Default = "Table1"</param>
+        /// <param name="tableName">DataTable name to use. Default="Table1"</param>
+        /// <param name="exportAsJsonObject">Export as a JSON object. False-Export as array, True-Export as object. Default=False</param>
+        /// <param name="jsonObjectName">JSON object name if exporting as an object. Default='records'</param>
+        /// <param name="formatJson">Format JSON. True-Format,False-No Format</param>
         /// <returns>True=Success,False=Errors</returns>
-        public bool QueryRecordsToJsonFileDt(string sqlselect, string outputfile, bool replace = false, int queryTimeout = -1,string tableName="Table1")
+        public bool QueryRecordsToJsonFileDt(string sqlselect, string outputfile, bool replace = false, int queryTimeout = -1,string tableName="Table1", bool exportAsJsonObject = false, string jsonObjectName = "records", bool formatJson = true)
         {
             bool rtnquery;
 
@@ -909,7 +1117,7 @@ namespace IbmiOdbcDataAccess
                     throw new Exception("Query failed. Error: " + GetLastError());
 
                 // Now export the DataTable results to JSON file
-                return GetQueryResultsDataTableToJsonFile(outputfile,replace);
+                return GetQueryResultsDataTableToJsonFile(outputfile, replace, exportAsJsonObject, jsonObjectName, formatJson);
 
             }
             catch (Exception ex)
@@ -924,9 +1132,12 @@ namespace IbmiOdbcDataAccess
         /// </summary>
         /// <param name="sqlselect">SQL select</param>
         /// <param name="queryTimeout">Query Timeout. 0=No Timeout,-1=Use default timeout which is usually 30 seconds</param>
-        /// <param name="tableName">DataTable name to use. Default = "Table1"</param>
+        /// <param name="tableName">DataTable name to use. Default="Table1"</param>
+        /// <param name="exportAsJsonObject">Export as a JSON object. False-Export as array, True-Export as object. Default=False</param>
+        /// <param name="jsonObjectName">JSON object name if exporting as an object. Default='records'</param>
+        /// <param name="formatJson">Format JSON. True-Format,False-No Format</param>
         /// <returns>Query result as JSON string or blanks</returns>
-        public string QueryRecordsToJsonStringDt(string sqlselect,int queryTimeout = -1, string tableName = "Table1")
+        public string QueryRecordsToJsonStringDt(string sqlselect,int queryTimeout = -1, string tableName = "Table1",bool exportAsJsonObject = false, string jsonObjectName = "records", bool formatJson = true)
         {
             bool rtnquery;
 
@@ -941,7 +1152,7 @@ namespace IbmiOdbcDataAccess
                     throw new Exception("Query failed. Error: " + GetLastError());
 
                 // Now export the DataTable results to JSON string
-                return GetQueryResultsDataTableToJsonString();
+                return GetQueryResultsDataTableToJsonString(false, exportAsJsonObject, jsonObjectName, formatJson);
 
             }
             catch (Exception ex)
@@ -960,9 +1171,12 @@ namespace IbmiOdbcDataAccess
         /// <param name="outputfile">Output file</param>
         /// <param name="replace">True=replace output file is it exists. False=Dont replace. Default=False</param>
         /// <param name="queryTimeout">Query Timeout. 0=No Timeout,-1=Use default timeout which is usually 30 seconds</param>
-        /// <param name="tableName">DataTable name to use. Default = "Table1"</param>
+        /// <param name="tableName">DataTable name to use. Default="Table1"</param>
+        /// <param name="exportAsJsonObject">Export as a JSON object. False-Export as array, True-Export as object. Default=False</param>
+        /// <param name="jsonObjectName">JSON object name if exporting as an object. Default='records'</param>
+        /// <param name="formatJson">Format JSON. True-Format,False-No Format</param>
         /// <returns>True=Success,False=Errors</returns>
-        public bool QueryRecordsToJsonFileDr(string sqlselect, string outputfile, bool replace = false, int queryTimeout = -1,string tableName="Table1")
+        public bool QueryRecordsToJsonFileDr(string sqlselect, string outputfile, bool replace = false, int queryTimeout = -1,string tableName="Table1", bool exportAsJsonObject = false, string jsonObjectName = "records", bool formatJson = true)
         {
             bool rtnquery;
 
@@ -980,7 +1194,7 @@ namespace IbmiOdbcDataAccess
                 _dtTable = ConvertDataReaderToDataTable(_dtReader);
 
                 // Now export the internal DataTable results to JSON file
-                return GetQueryResultsDataTableToJsonFile(outputfile, replace);
+                return GetQueryResultsDataTableToJsonFile(outputfile, replace, exportAsJsonObject, jsonObjectName, formatJson);
             }
             catch (Exception ex)
             {
@@ -999,7 +1213,7 @@ namespace IbmiOdbcDataAccess
         /// <param name="replace">True=replace output file is it exists. False=Dont replace. Default=False</param>
         /// <param name="queryTimeout">Query Timeout. 0=No Timeout,-1=Use default timeout which is usually 30 seconds</param>
         ///  <param name="writeSchema">Write XML schema in return data</param>
-        ///  <param name="tableName">DataTable name to use. Default = "Table1"</param>
+        ///  <param name="tableName">DataTable name to use. Default="Table1"</param>
         /// <returns>True=Success,False=Errors</returns>
         public bool QueryRecordsToXmlFileDt(string sqlselect, string outputfile, bool replace = false, int queryTimeout = -1,bool writeSchema = false,string tableName="Table1")
         {
@@ -1033,7 +1247,7 @@ namespace IbmiOdbcDataAccess
         /// <param name="sqlselect">SQL select</param>
         /// <param name="queryTimeout">Query Timeout. 0=No Timeout,-1=Use default timeout which is usually 30 seconds</param>
         ///  <param name="writeSchema">Write XML schema in return data</param>
-        ///  <param name="tableName">DataTable name to use. Default = "Table1"</param>
+        ///  <param name="tableName">DataTable name to use. Default="Table1"</param>
         /// <returns>True=Success,False=Errors</returns>
         public string QueryRecordsToXmlStringDt(string sqlselect, int queryTimeout = -1, bool writeSchema = false, string tableName = "Table1")
         {
@@ -1070,7 +1284,7 @@ namespace IbmiOdbcDataAccess
         /// <param name="replace">True=replace output file is it exists. False=Dont replace. Default=False</param>
         /// <param name="queryTimeout">Query Timeout. 0=No Timeout,-1=Use default timeout which is usually 30 seconds</param>
         ///  <param name="writeSchema">Write XML schema in return data</param>
-        ///  <param name="tableName">DataTable name to use. Default = "Table1"</param>
+        ///  <param name="tableName">DataTable name to use. Default="Table1"</param>
         /// <returns>True=Success,False=Errors</returns>
         public bool QueryRecordsToXmlFileDr(string sqlselect, string outputfile, bool replace = false, int queryTimeout = -1,bool writeSchema=false, string tableName = "Table1")
         {
@@ -1220,25 +1434,6 @@ namespace IbmiOdbcDataAccess
         }
 
         /// <summary>
-        /// Get Internal DataTable object reference. Must be populated using ExecuteQueryDataTableInternal.
-        /// </summary>
-        /// <returns>DataTable object or null on errors</returns>
-        public DataTable GetDataTableInternal()
-        {
-            try
-            {
-                _lastError = "";
-
-                return _dtTable;
-            }
-            catch (Exception ex)
-            {
-                _lastError = ex.Message;
-                // If errors occur, return null.
-                return null;
-            }
-        }
-        /// <summary>
         /// Get Internal DataReader object reference. Must be populated using ExecuteQueryDataReaderInternal.
         /// </summary>
         /// <returns>DataReader object or null on errors</returns>
@@ -1258,7 +1453,7 @@ namespace IbmiOdbcDataAccess
             }
         }
         /// <summary>
-        /// Get Internal Data Connection reference. 
+        /// Get Internal Data Connection reference so it can be used. 
         /// </summary>
         /// <returns>DataReader object or null on errors</returns>
         public OdbcConnection GetDataConnection()
@@ -1971,8 +2166,11 @@ namespace IbmiOdbcDataAccess
         ///  This function gets the internal DataTable results and returns as a JSON string.
         ///  </summary>
         /// <param name="debugInfo">Write debug info in to JSON result packet. Default = False</param>
+        /// <param name="exportAsJsonObject">Export as a JSON object. False-Export as array, True-Export as object. Default=False</param>
+        /// <param name="jsonObjectName">JSON object name if exporting as an object. Default='records'</param>
+        /// <param name="formatJson">Format JSON. True-Format,False-No Format</param>
         ///  <returns>JSON string from DataTable</returns>
-        public string GetQueryResultsDataTableToJsonString(bool debugInfo = false)
+        public string GetQueryResultsDataTableToJsonString(bool debugInfo = false, bool exportAsJsonObject = false, string jsonObjectName = "records", bool formatJson = true)
         {
 
             // TODO - Use Newtonsoft JSON to convert to JSON
@@ -1989,10 +2187,21 @@ namespace IbmiOdbcDataAccess
                     throw new Exception("DataTable is Nothing. No data available.");
 
                 // Convert DataTable to JSON
-                sJsonData = oJsonHelper.DataTableToJsonWithStringBuilder(_dtTable, debugInfo);
+                // Removed JsonStringBuilder. Updated to Newtonsoft 2/8/2024
+                //sJsonData = oJsonHelper.DataTableToJsonWithStringBuilder(_dtTable, debugInfo);
+                sJsonData = oJsonHelper.ConvertDataTableToJsonWithNewtonSoft(_dtTable, formatJson);
 
-                // Return JSON output
-                return sJsonData.ToString();
+                // Export as JSON object 
+                if (exportAsJsonObject)
+                {
+                    // Return JSON output with json object wrapper
+                    return "{\"" + jsonObjectName + "\":" + sJsonData + "}";
+
+                }
+                else // Export as JSON array
+                {
+                    return sJsonData;
+                }
             }
             catch (Exception ex)
             {
@@ -2006,8 +2215,11 @@ namespace IbmiOdbcDataAccess
         ///  </summary>
         ///  <param name="sOutputFile">Output JSON file</param>
         ///  <param name="replace">Replace output file True=Replace file,False=Do not replace</param>
+        /// <param name="exportAsJsonObject">Export as a JSON object. False-Export as array, True-Export as object. Default=False</param>
+        /// <param name="jsonObjectName">JSON object name if exporting as an object. Default='records'</param>
+        /// <param name="formatJson">Format JSON. True-Format,False-No Format</param>
         ///  <returns>True=JSON file written successfully, False=Failure writing JSON output file.</returns>
-        public bool GetQueryResultsDataTableToJsonFile(string sOutputFile, bool replace = false)
+        public bool GetQueryResultsDataTableToJsonFile(string sOutputFile, bool replace = false, bool exportAsJsonObject = false, string jsonObjectName = "records", bool formatJson = true)
         {
             string sJsonWork;
 
@@ -2029,7 +2241,7 @@ namespace IbmiOdbcDataAccess
                 {
 
                     // Get JSON string
-                    sJsonWork = GetQueryResultsDataTableToJsonString();
+                    sJsonWork = GetQueryResultsDataTableToJsonString(false, exportAsJsonObject, jsonObjectName, formatJson);
 
                     // Write out JSON data
                     writer.Write(sJsonWork);
@@ -2068,6 +2280,142 @@ namespace IbmiOdbcDataAccess
               return null;
             }
 
+        }
+
+        /// <summary>
+        ///  Helper method to export DataTable Row List to Generic List and optionally include column names.
+        ///  </summary>
+        ///  <param name="dtTemp">DataTable Object</param>
+        ///  <param name="firstRowColumnNames">Return first row as column names. False=No column names, True=Return column names. Default=False</param>
+        ///  <returns>List object</returns>
+        public List<List<object>> ExportDataTableToGenericList(DataTable dtTemp, bool firstRowColumnNames = false)
+        {
+            List<List<object>> result = new List<List<object>>();
+            List<object> values = new List<object>();
+
+            try
+            {
+                _lastError = "";
+
+                // Include first row as columns
+                if (firstRowColumnNames)
+                {
+                    foreach (DataColumn column in dtTemp.Columns)
+                        values.Add(column.ColumnName);
+                    result.Add(values);
+                }
+
+                // Output all the data now
+                foreach (DataRow row in dtTemp.Rows)
+                {
+                    values = new List<object>();
+                    foreach (DataColumn column in dtTemp.Columns)
+                    {
+                        if (row.IsNull(column))
+                            values.Add(null);
+                        else
+                            values.Add(row[column]);
+                    }
+                    result.Add(values);
+                }
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _lastError = ex.Message;
+                return null;
+            }
+        }
+        /// <summary>
+        /// Convert DataTable to a List Object of selected type
+        /// </summary>
+        /// <typeparam name="T">Object type</typeparam>
+        /// <param name="dt">Data Table to convert</param>
+        /// <returns>List of selected Type<t></returns>
+        public List<T> ConvertDataTableToTypedList<T>(DataTable dt)
+        {
+            List<T> data = new List<T>();
+            foreach (DataRow row in dt.Rows)
+            {
+                T item = GetTypedItem<T>(row);
+                data.Add(item);
+            }
+            return data;
+        }
+        /// <summary>
+        /// Method used by ConvertDataTableToTypedList to get each object property
+        /// and set its value for the List. 
+        /// Note: If a property does not exist in specified class it will get skipped.
+        /// Note: Also if a property data type doesn't match it's DataTable equivalent 
+        /// type conversion errors will get thrown.
+        /// </summary>
+        /// <typeparam name="T">Object type to use for extracting DataRow values</typeparam>
+        /// <param name="dr">DataRow to extract data from into properties</param>
+        /// <returns>populated Object of selected DataRow fields</returns>
+        public T GetTypedItem<T>(DataRow dr)
+        {
+            Type temp = typeof(T); // Create object of passed in type
+            T obj = Activator.CreateInstance<T>();
+
+            // Iterate all columns for current DataRow and set into Object Type properties.
+            foreach (DataColumn column in dr.Table.Columns)
+            {
+
+                foreach (PropertyInfo pro in temp.GetProperties())
+                {
+                    // If property exists, set value
+                    if (pro.Name == column.ColumnName)
+                        pro.SetValue(obj, dr[column.ColumnName], null);
+                    else // Property does not exist for query record field
+                         // So ignore it and continue
+                        continue;
+                }
+            }
+            return obj;
+        }
+
+        /// <summary>
+        ///  Helper method to export internal DataTable Row List to Generic List and optionally include column names.
+        ///  </summary>
+        ///  <param name="firstRowColumnNames">Return first row as column names. False=No column names, True=Return column names. Default=False</param>
+        ///  <returns>List object</returns>
+        public List<List<object>> ExportDataTableToGenericListInternal(bool firstRowColumnNames = false)
+        {
+            List<List<object>> result = new List<List<object>>();
+            List<object> values = new List<object>();
+
+            try
+            {
+                _lastError = "";
+
+                // Include first row as columns
+                if (firstRowColumnNames)
+                {
+                    foreach (DataColumn column in _dtTable.Columns)
+                        values.Add(column.ColumnName);
+                    result.Add(values);
+                }
+
+                // Output all the data now
+                foreach (DataRow row in _dtTable.Rows)
+                {
+                    values = new List<object>();
+                    foreach (DataColumn column in _dtTable.Columns)
+                    {
+                        if (row.IsNull(column))
+                            values.Add(null);
+                        else
+                            values.Add(row[column]);
+                    }
+                    result.Add(values);
+                }
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _lastError = ex.Message;
+                return null;
+            }
         }
 
         /// <summary>
@@ -2153,6 +2501,141 @@ namespace IbmiOdbcDataAccess
             }
 
         }
+
+        #endregion
+
+        #region Misc Helper Methods
+
+        /// <summary>
+        /// Write to text file with string value
+        /// </summary>
+        /// <param name="fileName">File name to write or replace</param>
+        /// <param name="valueToWrite">String value to write</param>
+        /// <param name="encoder">Encoder to use. Encoding.Default is used if not specified.</param>
+        /// <returns>True=File write was successful. False=Errors occurred on file write.</returns>
+        public bool WriteTextFile(string fileName,string valueToWrite,Encoding encoder=null)
+        {
+            try
+            {
+
+                _lastError = "";
+
+                // Set default encoding if nothing passed
+                if (encoder == null)
+                    encoder = Encoding.Default;
+
+                // Write text to new or existing text file.
+                File.WriteAllText(fileName, valueToWrite,encoder);
+
+                return true;
+
+            } catch (Exception ex){
+                _lastError = ex.Message;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Append to text file with string value
+        /// </summary>
+        /// <param name="fileName">File name to write or replace</param>
+        /// <param name="valueToWrite">String value to write</param>
+        /// <param name="encoder">Encoder to use. Encoding.Default is used if not specified.</param>
+        /// <returns>True=File write was successful. False=Errors occurred on file write.</returns>
+        public bool AppendTextFile(string fileName, string valueToWrite, Encoding encoder = null)
+        {
+            try
+            {
+
+                _lastError = "";
+
+                // Set default encoding if nothing passed
+                if (encoder == null)
+                    encoder = Encoding.Default;
+
+                // Append text to new or existing text file.
+                File.AppendAllText(fileName, valueToWrite, encoder);
+
+                return true;
+
+            }
+            catch (Exception ex)
+            {
+                _lastError = ex.Message;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Read entire contents of text file to string.
+        /// </summary>
+        /// <param name="fileName">File name to write or replace</param>
+        /// <param name="encoder">Encoder to use. Encoding.Default is used if not specified.</param>
+        /// <returns>File contents as string or blanks if errors</returns>
+        public string ReadTextFile(string fileName, Encoding encoder = null)
+        {
+            try
+            {
+
+                _lastError = "";
+
+                // Set default encoding if nothing passed
+                if (encoder == null)
+                    encoder = Encoding.Default;
+
+                // Read and return the text
+                return File.ReadAllText(fileName, encoder);
+
+            }
+            catch (Exception ex)
+            {
+                _lastError = ex.Message;
+                return "";
+            }
+        }
+
+        /// <summary>
+        /// Check if file exists.
+        /// </summary>
+        /// <param name="fileName">File name</param>
+        /// <returns>True=File exists, False=File doesn't exist.</returns>
+        bool FileExists(string fileName)
+        {
+            try
+            {
+                return File.Exists(fileName);
+
+            } catch (Exception ex)
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Delete file if it exists.
+        /// </summary>
+        /// <param name="fileName">File name</param>
+        /// <returns>True=File deleted, False=File not deleted or not found.</returns>
+        bool FileDelete(string fileName)
+        {
+            try
+            {
+                if (File.Exists(fileName)) {
+                    File.Delete(fileName);
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                return false;
+            }
+        }
+
+        #endregion
 
     }
 }
