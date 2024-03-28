@@ -25,7 +25,7 @@ using IbmiOdbcDataAccess;
 using System.Data;
 using System.Data.Common;
 
-// Connect to system using only syste, user and password instead of connection string
+// Connect to system using only system, user and password instead of connection string
 var rtnconn = _ibmi.OpenConnection("1.1.1.1", "user1", "pass1");
 
 // Execute SQL query to results DataTable
