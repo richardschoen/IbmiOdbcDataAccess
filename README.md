@@ -19,6 +19,24 @@ The sample C# connection string variable below connects to a system with IP addr
 ```
 String _conn = "Driver={IBM i Access ODBC Driver};System=1.1.1.1;Uid=user1;Pwd=pass1;CommitMode=0;EXTCOLINFO=1;";
 ```
+## Sample C# Console Code to Run Query and Do Simple Iteration of Results
+```
+using IbmiOdbcDataAccess;
+using System.Data;
+using System.Data.Common;
 
+// Connect to system using only syste, user and password instead of connection string
+var rtnconn = _ibmi.OpenConnection("1.1.1.1", "user1", "pass1");
+
+// Execute SQL query to results DataTable
+var _dtable1 = _ibmi.ExecuteQueryToDataTable ("SELECT * FROM QIWS.QCUSTCDT");
+
+// Iterate and output desired columns to console
+foreach(DataRow _row in _dtable1.Rows)
+{
+    Console.WriteLine($"Cusnum:{_row["CUSNUM"]} Lastname:{_row["LSTNAM"]} Init:{_row["INIT"]}");
+}
+
+```
 ## Sample IBM i Connection Strings
 https://www.connectionstrings.com/ibm-i-access-odbc-driver/
