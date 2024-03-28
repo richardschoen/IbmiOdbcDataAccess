@@ -15,7 +15,7 @@ In order to use this connection string you must already have the IBM i Access OD
 
 The sample C# connection string variable below connects to a system with IP address: ```1.1.1.1``` User: ```user1``` Password: ```pass1```
 ```
-String _conn = "Driver={IBM i Access ODBC Driver};System=1.1.1.1;Uid=user1;Pwd=pass1;CommitMode=0;EXTCOLINFO=1;
+String _conn = "Driver={IBM i Access ODBC Driver};System=1.1.1.1;Uid=user1;Pwd=pass1;CommitMode=0;EXTCOLINFO=1;";
 ```
 
 ## Sample IBM i Connection Strings
