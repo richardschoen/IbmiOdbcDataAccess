@@ -2326,6 +2326,130 @@ namespace IbmiOdbcDataAccess
                 return null;
             }
         }
+
+        /// <summary>
+        /// Get record count from selected table using optional where criteria.
+        /// </summary>
+        /// <param name="qualifiedtable">Qualified IBM i table name. Ex: LIBRARY.FILE</param>
+        /// <param name="wherecriteria">Optional WHERE criteria. WHERE keyword not required. 
+        /// If criteria is empty all records counted.
+        /// </param>
+        /// <returns>Record count or -2 on errors. Use GetLastError to see error message.</returns>
+        public int QueryTableRecordCount(string qualifiedtable, string wherecriteria = "")
+        {
+            try
+            {
+                _lastError = "";
+
+                string sql;
+
+                // If there is a where criteria, add it to the sql statement
+                if (wherecriteria.Trim() != "")
+                    sql = $"SELECT COUNT(*) AS RECCOUNT FROM {qualifiedtable} WHERE {wherecriteria}";
+                else
+                    sql = $"SELECT COUNT(*) AS RECCOUNT FROM {qualifiedtable}";
+
+                using (DataTable _dtable = ExecuteQueryToDataTable(sql))
+                {
+
+                    // Make sure there was data for this table and at least 1 row
+                    if (_dtable != null && _dtable.Rows.Count > 0)
+                    {
+                        DataRow _row = _dtable.Rows[0];
+                        int recCount = Convert.ToInt32(_row["RECCOUNT"]);
+                        _lastError = $"{recCount} records found from table {qualifiedtable} with criteria:{wherecriteria}.";
+                        return recCount;
+                    }
+                    else
+                        // Last error should already be set from the query itself so don't set it again
+                        return -2;
+                }
+            }
+            catch (Exception ex)
+            {
+                _lastError = ex.Message;
+                return -2;
+            }
+        }
+
+        /// <summary>
+        /// Check if record(s) exist for the given table name and query where criteria.
+        /// This will work to check for a single instance of a row or multiple instances
+        /// depending on how the singlerecordonly flag is set.
+        /// </summary>
+        /// <param name="qualifiedtable">Qualified IBM i table name. Ex: LIBRARY.FILE</param>
+        /// <param name="wherecriteria">Optional WHERE criteria. WHERE keyword not required. If empty all records counted.</param>
+        /// <param name="singlerecordmatchonly">Optional only return true if single instance of record/row exists.
+        /// If false we return true if ANY number of records found that match the criteria. 
+        /// Default=false
+        /// </param>
+        /// <returns>True if record exists. False if no record exists. Use GetLastError to see error message.</returns>
+        public bool CheckIfTableRecordsExist(string qualifiedtable, string wherecriteria = "", bool singlerecordmatchonly = false)
+        {
+            try
+            {
+                _lastError = "";
+
+                string sql;
+
+                // If there is a where criteria, add it to the sql statement
+                if (wherecriteria.Trim() != "")
+                    sql = $"SELECT COUNT(*) AS RECCOUNT FROM {qualifiedtable} WHERE {wherecriteria}";
+                else
+                    sql = $"SELECT COUNT(*) AS RECCOUNT FROM {qualifiedtable}";
+
+                // Let's run the query and get the record count
+                using (DataTable _dtable = ExecuteQueryToDataTable(sql))
+                {
+
+                    // Make sure there was data for this table and at least 1 row
+                    if (_dtable != null && _dtable.Rows.Count > 0)
+                    {
+                        DataRow _row = _dtable.Rows[0];
+                        int recCount = Convert.ToInt32(_row["RECCOUNT"]);
+                        if (recCount > 0)
+                        {
+
+                            // Single record match mode. Only return true if 1 record found.
+                            if (singlerecordmatchonly)
+                            {
+                                // We only return true if single instance of record found
+                                if (recCount == 1)
+                                {
+                                    _lastError = $"Single instance of record found from table {qualifiedtable} with criteria:{wherecriteria}.";
+                                    return true;
+                                }
+                                else
+                                {
+                                    _lastError = $"{recCount} instances of record found from table {qualifiedtable} with criteria:{wherecriteria}.";
+                                    return false;
+                                }
+                            }
+                            else
+                            {
+                                _lastError = $"{recCount} records found from table {qualifiedtable} with criteria:{wherecriteria}.";
+                                return true;
+                            }
+                        }
+                        else
+                        {
+                            // No data found
+                            _lastError = $"{recCount} found from table {qualifiedtable} with criteria:{wherecriteria}.";
+                            return false;
+                        }
+                    }
+                    else
+                        // Last error should already be set from the query itself so don't set it again
+                        return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                _lastError = ex.Message;
+                return false;
+            }
+        }
+
         /// <summary>
         /// Convert DataTable to a List Object of selected type
         /// </summary>

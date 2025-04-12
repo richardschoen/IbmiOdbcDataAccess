@@ -1,4 +1,4 @@
-# IbmiOdbcDataAccess -IBM i/AS400 ODBC Data Access Class
+# IbmiOdbcDataAccess - IBM i/AS400 ODBC Data Access Class
 This C# project contains a sample class library that can be generated for using the IBM i Access ODBC Driver in a .Net or .Net Core project. The project compiles to .Net Standard 2.0 which is compatible back to .Net and .Net Core 2.1.
 
 You could also just lift the classes and put into your own source code rather than creating a separate class library. It's up to you.
