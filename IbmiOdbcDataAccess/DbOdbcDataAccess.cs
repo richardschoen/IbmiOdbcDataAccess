@@ -19,7 +19,7 @@ namespace IbmiOdbcDataAccess
     /// Extending and inheriting is a better strategy than modifying the core IbmiOdbcDataAccess class object.
     /// </summary>
     /// <remarks></remarks>
-    public class DbOdbcDataAccess
+    public class DbOdbcDataAccess : IDisposable
     {
         // Made these class variables public so class.
         // that is using this as a base class can use these variables too.
@@ -39,6 +39,30 @@ namespace IbmiOdbcDataAccess
 
 
         #region Odbc Database Methods
+
+        /// <summary>
+        /// Close and dispose database connections
+        /// </summary>
+        public void Dispose()
+        {
+
+            try
+            {
+
+                // Close and dispose the connection
+                if (_conn != null)
+                {
+                    CloseConnection();
+                    _conn = null;
+                }
+
+            }
+            catch (Exception ex)
+            {
+                _lastError = ex.Message;
+            }
+
+        }
 
         /// <summary>
         /// Get internal OdbcConnection object so it can be used.
@@ -159,8 +183,6 @@ namespace IbmiOdbcDataAccess
                 _lastError = ex.Message;
             }
         }
-
-
 
         /// <summary>
         /// Open database connection without passing explicit connection string.
@@ -291,9 +313,10 @@ namespace IbmiOdbcDataAccess
             {
                 _lastError = "";
 
-                if (_conn == null == false)
+                if (_conn != null)
                 {
                     _conn.Close();
+                    _conn.Dispose();
                     _conn = null;
                 }
 
@@ -2658,6 +2681,8 @@ namespace IbmiOdbcDataAccess
                 return false;
             }
         }
+
+
 
         /// <summary>
         /// Append to text file with string value
