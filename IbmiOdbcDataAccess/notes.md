@@ -7,4 +7,6 @@ This was the initial version release for this code.
 - Added CheckIfTableRecordsExist method for checking record existence.
 - Added QueryTableRecordCount method for counting records in a table.
 
+# 1.0.0.3
+- Added Dispose method to dispose of database resources.
 
