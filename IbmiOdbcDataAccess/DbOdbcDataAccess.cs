@@ -8,8 +8,6 @@ using System.Data.Common;
 using System.Collections;
 using System.Collections.Generic;
 
-
-
 namespace IbmiOdbcDataAccess
 {
     /// <summary>
@@ -37,7 +35,6 @@ namespace IbmiOdbcDataAccess
         protected string _lastSql;
         protected string _ibmiaccessconntemplate="Driver={IBM i Access ODBC Driver};System=@@SYSTEM;Uid=@@USERID;Pwd=@@PASS;CommitMode=0;EXTCOLINFO=1";
 
-
         #region Odbc Database Methods
 
         /// <summary>
@@ -46,16 +43,64 @@ namespace IbmiOdbcDataAccess
         public void Dispose()
         {
 
+            // Dispose of DataTable if set
             try
             {
+                if (_dtTable != null)
+                {
+                    _dtTable.Dispose();
+                    _dtTable = null;
+                }
+            } catch (Exception ex)
+            {
+            }
 
-                // Close and dispose the connection
+            // Dispose of DataSet if set
+            try 
+            { 
+                if (_dtDataSet != null)
+                {
+                   _dtDataSet.Dispose();
+                   _dtDataSet = null;
+                }
+            } catch (Exception ex)
+            {
+            }
+
+            // Dispose of DataReader if set
+            try 
+            {  
+                if (_dtReader != null)
+                {
+                    _dtReader.Close();
+                    _dtReader.Dispose();
+                    _dtReader = null;
+                }
+            }
+            catch (Exception ex)
+            {
+            }
+
+            // Dispose of ODBC command if set
+            try 
+            { 
+                if (_cmd != null)
+                {
+                    _cmd.Dispose();
+                    _cmd = null;
+                }
+            }
+            catch (Exception ex)
+            {
+            }
+
+            // Close and dispose the connection
+            try 
+            { 
                 if (_conn != null)
                 {
                     CloseConnection();
-                    _conn = null;
                 }
-
             }
             catch (Exception ex)
             {

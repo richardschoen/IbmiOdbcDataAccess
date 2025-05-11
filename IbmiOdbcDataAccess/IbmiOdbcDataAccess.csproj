@@ -11,9 +11,9 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/richardschoen/IbmiOdbcDataAccess</RepositoryUrl>
     <PackageTags>AS400;IBMi;ODBC;Data;Access;CL;RPG;Stored Procedures;</PackageTags>
-    <AssemblyVersion>1.0.0.2</AssemblyVersion>
-    <FileVersion>1.0.0.1</FileVersion>
-    <Version>1.0.0.2</Version>
+    <AssemblyVersion>1.0.0.3</AssemblyVersion>
+    <FileVersion>1.0.0.3</FileVersion>
+    <Version>1.0.0.3</Version>
   </PropertyGroup>
 
   <ItemGroup>
